@@ -9,7 +9,7 @@ var prefixes = ['precision'];
 var precisions = ['lowp', 'mediump', 'highp'];
 var keywords = ['uniform', 'varying', 'const', 'mediump', 'lowp', 'highp'];
 var types = ['int', 'float', 'vec2', 'vec3', 'vec4', 'mat4', 'sampler2D', 'samplerCube', 'ivec3', 'mat4'];
-var infixes = [ '*', '+', '<<', '>>', '<', '>', '<=', '>=', '==', '!=', '&', '^', '|', '&&', '||' ];
+var infixOperators = [ '*', '+', '<<', '>>', '<', '>', '<=', '>=', '==', '!=', '&', '^', '|', '&&', '||' ];
 
 var assignmentInfix = [ '=', '+=', '-=', '*=', '/=', '%=', '<<=', '>>=', '&=', '^=', '|=' ];
 
@@ -73,12 +73,9 @@ var json = (function() {
     });
 
     var expression = lazy(function() {
-        return integer
-            .or( infixed )
-            .or( number )
-            .or( invocation )
-            .or( varName )
-            .or( grouped );
+        return atom
+            .or( operation )
+            .or( invocation );
     });
 
     //
@@ -92,11 +89,19 @@ var json = (function() {
         return between(string('('), string(')'), parser);
     };
 
-    var commaSep = function(parser) {
-        var commaParser = ws( string( ',') ).then(parser).many();
-        return seq([parser, commaParser]).map(function(results) {
-            return [results[0]].concat(results[1]);
-        }).or(succeed([]));
+    var commaSep = function( parser ) {
+        return chainr1( parser, string(',') );
+    };
+
+    // parser, operator parser [, operator, parser ... ]
+    var chainr1 = function( parser, operator ) {
+        return parser.then(function(x) {
+            return operator.then(function(f) {
+                return chainr1(parser, operator).then(function(y) {
+                    return succeed( f(x, y) );
+                });
+            }).or(succeed(x));
+        });
     };
 
     // Ignore whitespace
@@ -124,17 +129,72 @@ var json = (function() {
     var stringLiteral = regex(/^"(\\.|.)*?"/).map(function(str) {
         return str.slice(1, -1);
     });
-
     var varName = regex(/^[a-z_][a-z0-9_]*/i).map(function(str) {
         // todo: reserved words, scope test
         return str;
     });
 
+    var atom = lazy(function() {
+        return integer
+            .or( number )
+            .or( stringLiteral )
+            .or( varName );
+    });
+
+    var infix = function( term, operators ) {
+        return chainr1( term, regex( operators ).map(function( operator ) {
+            return function( left, right ) {
+                return {
+                    type: operator,
+                    left: left,
+                    right: right
+                };
+            };
+        }));
+    };
+
+    var invocation = lazy(function() {
+        return varName.then(function( name ) {
+            return string('(').then(function() {
+                return operation.skip(string(')'));
+            }).map(function( args ) {
+                return {
+                    name: name,
+                    first: args
+                };
+            });
+        });
+    });
+
+    var operatable = lazy(function() {
+        return invocation.or( atom ).or( parenthed( operation ));
+    });
+
+    var operation = lazy(function() {
+        return _.reduce([
+            ['||'],
+            ['^^'],
+            ['&&'],
+            ['|'],
+            ['^'],
+            ['&'],
+            ['==', '!='],
+            ['<', '<=', '>=', '>'],
+            ['<<', '>>'],
+            ['+', '-'],
+            ['*', '/']
+        ], infix, operatable );
+    });
+
+    var p = operation;
+
+    console.log( p.parse( "( a ) + vec3( ( a + b ) - a ) + a" ) );
+
+    return;
+
     //
     // Constructs
     //
-
-    var infix = regex( infixes );
     var type = regex( types );
     var preVarWords = regex( [].concat( prefixes, precisions, keywords ) );
 
@@ -142,13 +202,15 @@ var json = (function() {
     var decleration = seq([
         preVarWords.many(), type, varName
     ]);
-    
+
     // float num = expression
-    var assignment = seq([
-        decleration,
-        regex( assignmentInfix ),
-        expression
-    ]);
+    var assignment = regex( assignmentInfix ).result(function( left, right ) {
+        return {
+            type: '=',
+            left: left,
+            right: right
+        };
+    });
 
     var commaList = string('(').then(function() {
         return expression.commaStuff().skip(string(')'));
@@ -167,15 +229,6 @@ var json = (function() {
         block
     ]);
 
-    var invocation = seq([
-        varName.or( type ),
-        parenthed( commaSep( expression ) )
-    ]);
-
-    var grouped = parenthed( expression );
-
-    var infixed = seq([ varName, infix, varName ]);
-
     return lazy(function() {
         return statement.many();
     });
@@ -193,7 +246,7 @@ void main() {\
     vec4 glow = a + b;\
 }";
 
-var str2 = "a + b;";
+var str2 = "( a + ( b + c ) )";
 var result = json.parse( str2 );
 /*
     vec3 vNormal = normalize( normalMatrix * normal );\
