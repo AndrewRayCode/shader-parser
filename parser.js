@@ -1,5 +1,5 @@
 var _string = Parsimmon.string;
-var _regex = Parsimmon.regex;
+var regexNoWs = Parsimmon.regex;
 var succeed = Parsimmon.succeed;
 var seq = Parsimmon.seq;
 var lazy = Parsimmon.lazy;
@@ -8,16 +8,14 @@ var optWhitespace = Parsimmon.optWhitespace;
 var prefixes = ['precision'];
 var precisions = ['lowp', 'mediump', 'highp'];
 var keywords = ['uniform', 'varying', 'const', 'mediump', 'lowp', 'highp'];
-var types = ['int', 'float', 'vec2', 'vec3', 'vec4', 'mat4', 'sampler2D', 'samplerCube', 'ivec3', 'mat4'];
+var types = [ 'bool', 'int', 'float', 'vec2', 'vec3', 'vec4', 'bvec2', 'bvec3', 'bvec4', 'ivec2', 'ivec3', 'ivec4', 'mat2', 'mat3', 'mat4', 'sampler1D', 'sampler2D', 'sampler3D', 'samplerCube', 'sampler2DShadow' ];
 var infixOperators = [ '*', '+', '<<', '>>', '<', '>', '<=', '>=', '==', '!=', '&', '^', '|', '&&', '||' ];
 
 var assignmentInfix = [ '=', '+=', '-=', '*=', '/=', '%=', '<<=', '>>=', '&=', '^=', '|=' ];
 
-var fnTypes = ['void'].concat( types );
+var fnReturnTypes = ['void'].concat( types );
 
 var json = (function() {
-
-
 
     var escapeRegex = function( str ) {
         return (str + '').replace(/([.?*+^$[\]\\(){}|-])/g, "\\$1");
@@ -31,53 +29,6 @@ var json = (function() {
         return new RegExp( '^' + regex.join('|') );
     };
 
-    var escapes = {
-        b: '\b',
-        f: '\f',
-        n: '\n',
-        r: '\r',
-        t: '\t'
-    };
-
-    //var array = seq([regex(/^\[\s*/m), commaSep(json), string(']')]).map(function(results) {
-        //return results[1];
-    //});
-
-    //var pair = seq([stringLiteral.skip(regex(/^\s*:\s*/m)), json]);
-
-    //var object = seq([regex(/^[{]\s*/m), commaSep(pair), string('}')]).map(function(results) {
-        //var pairs = results[1];
-        //var out = {};
-        //for (var i = pairs.length-1; i >= 0; i -= 1) {
-        //out[pairs[i][0]] = pairs[i][1];
-        //}
-        //return out;
-    //});
-
-//var types = ['int' ,'float' ,'vec2' ,'vec3' ,'vec4' ,'vec3' ,'mat4' ,'sampler2D' ,'samplerCube' ,'int' ,'ivec3' ,'float' ,'vec3' ,'vec2' ,'vec3' ,'vec4' ,'mat4' ,'sampler2D'];
-    //
-    //var nullLiteral = string('null').result(null);
-    //var trueLiteral = string('true').result(true);
-    //var falseLiteral = string('false').result(false);
-
-    // todo: better way to not include semicolon?
-    var statement = lazy(function() {
-        return seq([
-            assignment
-                .or(functionDecleration)
-                .or(invocation)
-                .or(decleration)
-                .or(expression)
-                .skip( string(';').or( Parsimmon.eof ) )
-        ]);
-    });
-
-    var expression = lazy(function() {
-        return atom
-            .or( operation )
-            .or( invocation );
-    });
-
     //
     // Language agnostic helper functions
     //
@@ -89,8 +40,15 @@ var json = (function() {
         return between(string('('), string(')'), parser);
     };
 
+    var nippled = function( parser ) {
+        return between(string('{'), string('}'), parser);
+    };
+
     var commaSep = function( parser ) {
-        return chainr1( parser, string(',') );
+        var commaParser = string(',').then(parser).many();
+        return seq([parser, commaParser]).map(function(results) {
+            return [results[0]].concat(results[1]);
+        }).or(succeed([]));
     };
 
     // parser, operator parser [, operator, parser ... ]
@@ -104,10 +62,20 @@ var json = (function() {
         });
     };
 
+    var blockComment = regexNoWs( /^\/\*.*?\*\//m );
+    var lineComment = regexNoWs( /^\/\/.*$/i );
+
     // Ignore whitespace
     var ws = function( f ) {
-        return Parsimmon.optWhitespace.then( f );
+        return (
+            regexNoWs( /\s+/ )
+                .or( blockComment )
+                .or( lineComment )
+            ).many().then( f );
     };
+
+    //console.log( ws( _string('pewp') ).parse("pewp") );
+    //throw 'shit';
 
     // Can this be done better?
     var string = function(s) {
@@ -117,15 +85,15 @@ var json = (function() {
         if( r instanceof Array ) {
             r = listToRegex( r );
         }
-        return ws( _regex(r) );
+        return ws( regexNoWs(r) );
     };
 
     //
     // Terminators
     //
 
-    var integer = regex(/^\d+/i).map(parseInt);
-    var number = regex(/^\d+(([.]|e[+-]?)\d+)?/i).map(parseFloat);
+    var integer = regex(/^-?\d+/i).map(parseInt);
+    var number = regex(/^-?\d+(([.]|e[+-]?)\d+)?/i).map(parseFloat);
     var stringLiteral = regex(/^"(\\.|.)*?"/).map(function(str) {
         return str.slice(1, -1);
     });
@@ -135,8 +103,8 @@ var json = (function() {
     });
 
     var atom = lazy(function() {
-        return integer
-            .or( number )
+        return number
+            .or( integer )
             .or( stringLiteral )
             .or( varName );
     });
@@ -155,10 +123,9 @@ var json = (function() {
 
     var invocation = lazy(function() {
         return varName.then(function( name ) {
-            return string('(').then(function() {
-                return operation.skip(string(')'));
-            }).map(function( args ) {
+            return parenthed( commaSep( expression ) ).map(function( args ) {
                 return {
+                    type: 'invocation',
                     name: name,
                     first: args
                 };
@@ -166,11 +133,40 @@ var json = (function() {
         });
     });
 
-    var operatable = lazy(function() {
-        return invocation.or( atom ).or( parenthed( operation ));
+    var rightFix = function( operator, left ) {
+        return left.skip( string( operator ) ).map(function( name ) {
+            return {
+                type: operator,
+                left: name
+            };
+        });
+    };
+
+    var leftFix = function( operator, right ) {
+        return string( operator ).then( right ).map(function( name ) {
+            return {
+                type: operator,
+                left: name
+            };
+        });
+    };
+
+    var pp = rightFix( '++', varName );
+    var mm = rightFix( '--', varName );
+    var ppl = leftFix( '++', varName );
+    var mml = leftFix( '--', varName );
+
+    var expressionBase = lazy(function() {
+        return invocation
+            .or( pp )
+            .or( mm )
+            .or( ppl )
+            .or( mml )
+            .or( atom )
+            .or( parenthed( expression ));
     });
 
-    var operation = lazy(function() {
+    var expression = lazy(function() {
         return _.reduce([
             ['||'],
             ['^^'],
@@ -183,79 +179,109 @@ var json = (function() {
             ['<<', '>>'],
             ['+', '-'],
             ['*', '/']
-        ], infix, operatable );
+        ], infix, expressionBase );
     });
 
-    var p = operation;
+    var optional = function(p) {
+        return p.map(function(x) {
+            return x;
+        }).or(succeed());
+    };
 
-    console.log( p.parse( "( a ) + vec3( ( a + b ) - a ) + a" ) );
-
-    return;
-
-    //
-    // Constructs
-    //
-    var type = regex( types );
-    var preVarWords = regex( [].concat( prefixes, precisions, keywords ) );
-
-    // [mediump uniform] float num
-    var decleration = seq([
-        preVarWords.many(), type, varName
-    ]);
-
-    // float num = expression
-    var assignment = regex( assignmentInfix ).result(function( left, right ) {
-        return {
-            type: '=',
-            left: left,
-            right: right
-        };
+    var typeDec = seq([
+        optional( regex( prefixes ) ),
+        optional( regex( precisions ) ),
+        optional ( regex( keywords ) ),
+        regex( types ),
+    ]).then(function( types ) {
+        return varName.map(function( name ) {
+            return {
+                declerations: _.compact( types.slice( 0, -1 ) ),
+                type: types[ 3 ],
+                name: name
+            };
+        });
     });
 
-    var commaList = string('(').then(function() {
-        return expression.commaStuff().skip(string(')'));
+    var assignment = typeDec.then(function( dec ) {
+        return regex( assignmentInfix ).then( function() {
+            return expression.map(function( op ) {
+                return {
+                    type: 'assignment',
+                    left: dec,
+                    right: op
+                };
+            });
+        });
     });
 
-    var args = string('(').then(function() {
-        return commaSep( varName ).skip(string(')'));
+    var block = lazy(function() {
+        return nippled( statement.many() );
     });
 
-    var block = between( string( '{' ), string( '}' ), statement.many() );
+    var functionArgs = lazy(function() {
+        return parenthed( commaSep( varName ) );
+    });
+
+    var returnStatement = string('return').then(function() {
+        return expression;
+    }).skip( string(';').or( Parsimmon.eof ));
 
     var functionDecleration = seq([
-        regex( fnTypes ),
+        regex( fnReturnTypes ),
         varName,
-        args,
-        block
-    ]);
-
-    return lazy(function() {
-        return statement.many();
+        functionArgs
+    ]).then(function( parts ) {
+        return nippled( ( returnStatement.or( statement ) ).many() ).map(function( results ) {
+            return {
+                type: 'function',
+                returnType: parts[0],
+                name: parts[1],
+                args: parts[2],
+                body: results
+            };
+        });
     });
 
-})();
+    var blockStatement = function( keyword, condition ) {
+        return string( keyword ).then(function() {
+            return parenthed( condition ).then( function( condRes ) {
+                return nippled( statement.many() ).or( statement );
+            });
+        });
+    };
 
-var str1 = "\
-uniform int a;\n\
+    var forStatement = blockStatement( 'for', seq([
+        assignment, string(';'), expression, string(';'), expression
+    ]));
+
+    var statement = (
+            forStatement
+            .or( functionDecleration )
+            .or( assignment )
+            .or( typeDec )
+            .or( expression )
+        ).skip( string(';').or( Parsimmon.eof ));
+
+    var p = statement.many();
+
+    console.log(p.parse("\
+mat3 /* pewp pewp */ m3x3 = mat3(m2x2);\
 uniform vec3 viewVector = 1;\n\
 uniform float c = 1;\n\
 uniform float p = 1;\n\
+for(int i=0;i<int(uLightCount);++i) {\
+    vec3 lightPos;\
+}\
+vec2 a = vec2(1.0, 2.0);\
 varying float intensity;\
+main( 1, 2 );\
 \
 void main() {\
     vec4 glow = a + b;\
-}";
+    return glow;\
+}"
+));
+    return;
 
-var str2 = "( a + ( b + c ) )";
-var result = json.parse( str2 );
-/*
-    vec3 vNormal = normalize( normalMatrix * normal );\
-    vec3 vNormel = normalize( normalMatrix * viewVector );\
-    intensity = pow( c - dot(vNormal, vNormel), p );\
-    \
-    gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );\
-}
-
-*/
-
-console.log(result);
+})();
