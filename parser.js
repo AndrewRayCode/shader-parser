@@ -244,9 +244,15 @@ var json = (function() {
     });
 
     var blockStatement = function( keyword, condition ) {
-        return string( keyword ).then(function() {
-            return parenthed( condition ).then( function( condRes ) {
-                return nippled( statement.many() ).or( statement );
+        return string( keyword ).then( parenthed( condition ) ).then( function( condRes ) {
+            return nippled( statement.many() ).or( statement ).map( function( body ) {
+                return {
+                    type: 'for',
+                    first: condRes[0],
+                    second: condRes[2],
+                    third: condRes[3],
+                    body: body
+                };
             });
         });
     };
@@ -272,7 +278,7 @@ uniform float c = 1;\n\
 uniform float p = 1;\n\
 for(int i=0;i<int(uLightCount);++i) {\
     vec3 lightPos;\
-}\
+};\
 vec2 a = vec2(1.0, 2.0);\
 varying float intensity;\
 main( 1, 2 );\
