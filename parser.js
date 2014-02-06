@@ -8,17 +8,20 @@ var optWhitespace = Parsimmon.optWhitespace;
 var prefixes = ['precision'];
 var precisions = ['lowp', 'mediump', 'highp'];
 var keywords = ['uniform', 'varying', 'const', 'mediump', 'lowp', 'highp'];
-var types = [ 'bool', 'int', 'float', 'vec2', 'vec3', 'vec4', 'bvec2', 'bvec3', 'bvec4', 'ivec2', 'ivec3', 'ivec4', 'mat2', 'mat3', 'mat4', 'sampler1D', 'sampler2D', 'sampler3D', 'samplerCube', 'sampler2DShadow' ];
+var types = [ 'void', 'bool', 'int', 'float', 'vec2', 'vec3', 'vec4', 'bvec2', 'bvec3', 'bvec4', 'ivec2', 'ivec3', 'ivec4', 'mat2', 'mat3', 'mat4', 'mat2x2', 'mat2x3', 'mat2x4', 'mat3x2', 'mat3x3', 'mat3x4', 'mat4x2', 'mat4x3', 'mat4x4', 'sampler1D', 'sampler2D', 'sampler3D', 'samplerCube', 'sampler1DShadow', 'sampler2DShadow' ];
+
 var infixOperators = [ '*', '+', '<<', '>>', '<', '>', '<=', '>=', '==', '!=', '&', '^', '|', '&&', '||' ];
 
 var assignmentInfix = [ '=', '+=', '-=', '*=', '/=', '%=', '<<=', '>>=', '&=', '^=', '|=' ];
-
-var fnReturnTypes = ['void'].concat( types );
 
 var json = (function() {
 
     var escapeRegex = function( str ) {
         return (str + '').replace(/([.?*+^$[\]\\(){}|-])/g, "\\$1");
+    };
+
+    var emptyArrToNull = function( arr ) {
+        return !(arr && arr.length) ? null : arr;
     };
 
     var listToRegex = function( list ) {
@@ -47,6 +50,7 @@ var json = (function() {
     var commaSep = function( parser ) {
         var commaParser = string(',').then(parser).many();
         return seq([parser, commaParser]).map(function(results) {
+            console.log(results);
             return [results[0]].concat(results[1]);
         }).or(succeed([]));
     };
@@ -71,11 +75,9 @@ var json = (function() {
             regexNoWs( /\s+/ )
                 .or( blockComment )
                 .or( lineComment )
-            ).many().then( f );
+            // Skip trailing whitespace in case we are at end of stream
+            ).many().then( f ).skip( Parsimmon.optWhitespace );
     };
-
-    //console.log( ws( _string('pewp') ).parse("pewp") );
-    //throw 'shit';
 
     // Can this be done better?
     var string = function(s) {
@@ -97,23 +99,20 @@ var json = (function() {
     var stringLiteral = regex(/^"(\\.|.)*?"/).map(function(str) {
         return str.slice(1, -1);
     });
-    var varName = regex(/^[a-z_][a-z0-9_]*/i).map(function(str) {
-        // todo: reserved words, scope test
-        return str;
-    });
+    var identifier = regex(/^[a-z_][a-z0-9_]*/i);
 
     var atom = lazy(function() {
         return number
             .or( integer )
             .or( stringLiteral )
-            .or( varName );
+            .or( identifier );
     });
 
     var infix = function( term, operators ) {
         return chainr1( term, regex( operators ).map(function( operator ) {
             return function( left, right ) {
                 return {
-                    type: operator,
+                    nodeType: operator,
                     left: left,
                     right: right
                 };
@@ -122,10 +121,10 @@ var json = (function() {
     };
 
     var invocation = lazy(function() {
-        return varName.then(function( name ) {
+        return identifier.then(function( name ) {
             return parenthed( commaSep( expression ) ).map(function( args ) {
                 return {
-                    type: 'invocation',
+                    nodeType: 'invocation',
                     name: name,
                     first: args
                 };
@@ -136,7 +135,7 @@ var json = (function() {
     var rightFix = function( operator, left ) {
         return left.skip( string( operator ) ).map(function( name ) {
             return {
-                type: operator,
+                nodeType: operator,
                 left: name
             };
         });
@@ -145,16 +144,16 @@ var json = (function() {
     var leftFix = function( operator, right ) {
         return string( operator ).then( right ).map(function( name ) {
             return {
-                type: operator,
+                nodeType: operator,
                 left: name
             };
         });
     };
 
-    var pp = rightFix( '++', varName );
-    var mm = rightFix( '--', varName );
-    var ppl = leftFix( '++', varName );
-    var mml = leftFix( '--', varName );
+    var pp = rightFix( '++', identifier );
+    var mm = rightFix( '--', identifier );
+    var ppl = leftFix( '++', identifier );
+    var mml = leftFix( '--', identifier );
 
     var expressionBase = lazy(function() {
         return invocation
@@ -192,14 +191,17 @@ var json = (function() {
         optional( regex( prefixes ) ),
         optional( regex( precisions ) ),
         optional ( regex( keywords ) ),
-        regex( types ),
-    ]).then(function( types ) {
-        return varName.map(function( name ) {
-            return {
-                declerations: _.compact( types.slice( 0, -1 ) ),
-                type: types[ 3 ],
-                name: name
+        identifier,
+    ]).then(function( leftTypes ) {
+        return commaSep( identifier ).map(function( name ) {
+            var dec = {
+                nodeType: 'decleration',
+                declerations: emptyArrToNull( _.compact( leftTypes.slice( 0, -1 ) ) ),
+                type: leftTypes[ 3 ],
             };
+
+            dec['name' + ( name instanceof Array ? 's' : '' )] = name;
+            return dec;
         });
     });
 
@@ -207,7 +209,7 @@ var json = (function() {
         return regex( assignmentInfix ).then( function() {
             return expression.map(function( op ) {
                 return {
-                    type: 'assignment',
+                    nodeType: 'assignment',
                     left: dec,
                     right: op
                 };
@@ -220,7 +222,7 @@ var json = (function() {
     });
 
     var functionArgs = lazy(function() {
-        return parenthed( commaSep( varName ) );
+        return parenthed( commaSep( identifier ) );
     });
 
     var returnStatement = string('return').then(function() {
@@ -228,13 +230,13 @@ var json = (function() {
     }).skip( string(';').or( Parsimmon.eof ));
 
     var functionDecleration = seq([
-        regex( fnReturnTypes ),
-        varName,
+        identifier,
+        identifier,
         functionArgs
     ]).then(function( parts ) {
         return nippled( ( returnStatement.or( statement ) ).many() ).map(function( results ) {
             return {
-                type: 'function',
+                nodeType: 'function',
                 returnType: parts[0],
                 name: parts[1],
                 args: parts[2],
@@ -247,7 +249,7 @@ var json = (function() {
         return string( keyword ).then( parenthed( condition ) ).then( function( condRes ) {
             return nippled( statement.many() ).or( statement ).map( function( body ) {
                 return {
-                    type: 'for',
+                    nodeType: 'for',
                     first: condRes[0],
                     second: condRes[2],
                     third: condRes[3],
@@ -261,33 +263,79 @@ var json = (function() {
         assignment, string(';'), expression, string(';'), expression
     ]));
 
+    var whileStatement = blockStatement( 'while', expression );
+
+    var struct = string( 'struct' ).then( identifier ).then( function( name ) {
+        return nippled( typeDec.skip( string(';') ).many() ).map(function( body ) {
+            return {
+                type: 'struct',
+                name: name,
+                body: body
+            };
+        });
+    });
+
+    var constructor = regex( types ).then( function( name ) {
+        return functionArgs.map(function( args ) {
+            return {
+                nodeType: 'constructor',
+                type: name,
+                args: args
+            };
+        });
+    });
+
     var statement = (
             forStatement
+            .or( struct )
+            .or( whileStatement )
             .or( functionDecleration )
             .or( assignment )
+            .or( constructor )
+            .or( invocation )
             .or( typeDec )
             .or( expression )
-        ).skip( string(';').or( Parsimmon.eof ));
+            .map(function(a) {
+                return a;
+            })
+        // include statements that don't end in ; like for {}
+        ).skip( string(';').or( Parsimmon.optWhitespace ).or( Parsimmon.eof ));
 
     var p = statement.many();
 
     console.log(p.parse("\
-mat3 /* pewp pewp */ m3x3 = mat3(m2x2);\
-uniform vec3 viewVector = 1;\n\
-uniform float c = 1;\n\
-uniform float p = 1;\n\
-for(int i=0;i<int(uLightCount);++i) {\
-    vec3 lightPos;\
-};\
-vec2 a = vec2(1.0, 2.0);\
-varying float intensity;\
-main( 1, 2 );\
+mat3(float, float, boat,\n\
+ float, float, float,\n\
+ float, float, float);\n\
+mat2(float)\
 \
 void main() {\
     vec4 glow = a + b;\
     return glow;\
-}"
-));
+}\
+mat2(vec2, vec2);\
+float a, b;\
+float a, b = 1.5;\
+struct light {\
+    float intensity;\
+    vec3 position;\
+};\
+struct light {\
+    float intensity;\
+    vec3 position;\
+} lightVar;\
+mat3 /* pewp pewp */ m3x3 = mat3(m2x2);\
+uniform vec3 viewVector = 1;\n\
+light lightVar = light(3.0, vec3(1.0, 2.0, 3.0));\
+uniform float c = 1;\n\
+uniform float p = 1;\n\
+for(int i=0;i<int(uLightCount);++i) {\
+    vec3 lightPos;\
+}\
+vec2 a = vec2(1.0, 2.0);\
+varying float intensity;\
+main( 1, 2 );\
+ ")[0]);
     return;
 
 })();
