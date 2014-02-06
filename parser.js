@@ -43,6 +43,10 @@ var json = (function() {
         return between(string('('), string(')'), parser);
     };
 
+    var squared = function( parser ) {
+        return between(string('['), string(']'), parser);
+    };
+
     var nippled = function( parser ) {
         return between(string('{'), string('}'), parser);
     };
@@ -50,7 +54,6 @@ var json = (function() {
     var commaSep = function( parser ) {
         var commaParser = string(',').then(parser).many();
         return seq([parser, commaParser]).map(function(results) {
-            console.log(results);
             return [results[0]].concat(results[1]);
         }).or(succeed([]));
     };
@@ -67,16 +70,16 @@ var json = (function() {
     };
 
     var blockComment = regexNoWs( /^\/\*.*?\*\//m );
-    var lineComment = regexNoWs( /^\/\/.*$/i );
+    var lineComment = regexNoWs( /^\/\/.*/i );
+
+    var skipAll = regexNoWs( /\s+/ )
+        .or( blockComment )
+        .or( lineComment )
+        .many();
 
     // Ignore whitespace
     var ws = function( f ) {
-        return (
-            regexNoWs( /\s+/ )
-                .or( blockComment )
-                .or( lineComment )
-            // Skip trailing whitespace in case we are at end of stream
-            ).many().then( f ).skip( Parsimmon.optWhitespace );
+        return skipAll.then( f ).skip( skipAll );
     };
 
     // Can this be done better?
@@ -105,6 +108,7 @@ var json = (function() {
         return number
             .or( integer )
             .or( stringLiteral )
+            .or( arrayIndex )
             .or( identifier );
     });
 
@@ -155,14 +159,39 @@ var json = (function() {
     var ppl = leftFix( '++', identifier );
     var mml = leftFix( '--', identifier );
 
+    var arrayIndex = lazy(function() {
+        return identifier.then( function( name ) {
+            return squared( optional( expression ) ).map( function( index ) {
+                return {
+                    nodeType: 'arrayIndex',
+                    name: name,
+                    index: index
+                };
+            });
+        });
+    });
+
+    // const float d[3] = float[](5.0, 7.2, 1.1);
+    var arrayInstantation = arrayIndex.then(function( index ) {
+        return parenthed( commaSep( expression ) ).map(function( args ) {
+            return {
+                nodeType: 'arrayInstantation',
+                index: index,
+                args: args
+            };
+        });
+    });
+
     var expressionBase = lazy(function() {
         return invocation
+            .or( arrayIndex )
             .or( pp )
             .or( mm )
             .or( ppl )
             .or( mml )
             .or( atom )
-            .or( parenthed( expression ));
+            .or( parenthed( expression ))
+            .or( squared( expression ));
     });
 
     var expression = lazy(function() {
@@ -191,9 +220,9 @@ var json = (function() {
         optional( regex( prefixes ) ),
         optional( regex( precisions ) ),
         optional ( regex( keywords ) ),
-        identifier,
+        identifier
     ]).then(function( leftTypes ) {
-        return commaSep( identifier ).map(function( name ) {
+        return commaSep( arrayIndex.or( identifier ) ).map(function( name ) {
             var dec = {
                 nodeType: 'decleration',
                 declerations: emptyArrToNull( _.compact( leftTypes.slice( 0, -1 ) ) ),
@@ -207,7 +236,7 @@ var json = (function() {
 
     var assignment = typeDec.then(function( dec ) {
         return regex( assignmentInfix ).then( function() {
-            return expression.map(function( op ) {
+            return arrayInstantation.or( expression ).map(function( op ) {
                 return {
                     nodeType: 'assignment',
                     left: dec,
@@ -266,12 +295,15 @@ var json = (function() {
     var whileStatement = blockStatement( 'while', expression );
 
     var struct = string( 'struct' ).then( identifier ).then( function( name ) {
-        return nippled( typeDec.skip( string(';') ).many() ).map(function( body ) {
-            return {
-                type: 'struct',
-                name: name,
-                body: body
-            };
+        return nippled( typeDec.skip( string(';') ).many() ).then(function( body ) {
+            return identifier.many().map( function( declared ) {
+                return {
+                    type: 'struct',
+                    name: name,
+                    body: body,
+                    declared: emptyArrToNull( declared )
+                };
+            });
         });
     });
 
@@ -296,6 +328,7 @@ var json = (function() {
             .or( typeDec )
             .or( expression )
             .map(function(a) {
+                console.log(a);
                 return a;
             })
         // include statements that don't end in ; like for {}
@@ -304,7 +337,12 @@ var json = (function() {
     var p = statement.many();
 
     console.log(p.parse("\
-mat3(float, float, boat,\n\
+const float c[3] = float[3](5.0, 7.2, 1.1);\
+struct light {\
+    float intensity;\
+    vec3 position;\
+} lightVar;\
+mat3(float, float, boat, // inline comment\n\
  float, float, float,\n\
  float, float, float);\n\
 mat2(float)\
@@ -320,10 +358,6 @@ struct light {\
     float intensity;\
     vec3 position;\
 };\
-struct light {\
-    float intensity;\
-    vec3 position;\
-} lightVar;\
 mat3 /* pewp pewp */ m3x3 = mat3(m2x2);\
 uniform vec3 viewVector = 1;\n\
 light lightVar = light(3.0, vec3(1.0, 2.0, 3.0));\
