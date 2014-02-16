@@ -32,10 +32,6 @@ var ws = function( f ) {
     return skipAll.then( f ).skip( skipAll );
 };
 
-//ws = function( f ) {
-    //return f;
-//};
-
 // Can this be done better?
 var string = function(s) {
     return ws( _string(s) );
@@ -169,7 +165,7 @@ var variable_identifier = lazy(function() {
 });
 
 var primary_expression = lazy(function() {
-    return ( variable_identifier)
+    return ( variable_identifier )
         .or( INTCONSTANT )
         .or( FLOATCONSTANT )
         .or( BOOLCONSTANT )
@@ -225,9 +221,10 @@ var a = c.then( b.many() )
 //d.then( c.or( e ).many() );
 
 var postfix_expression = lazy(function() {
-    return primary_expression.or( function_call ).then(
+    return primary_expression.then(
         (
             ( LEFT_BRACKET.then(integer_expression).then(RIGHT_BRACKET) )
+                .or( DOT.then(function_call_generic) )
                 .or( DOT.then(FIELD_SELECTION) )
                 .or( INC_OP )
                 .or( DEC_OP )
@@ -420,9 +417,7 @@ var parameter_qualifier = lazy(function() {
     return IN
         .or( OUT )
         .or( INOUT )
-        .or( succeed() ).map(function() {
-            console.log('fuck');
-        });
+        .or( succeed() );
 });
 
 var parameter_type_specifier = lazy(function() {
@@ -430,7 +425,7 @@ var parameter_type_specifier = lazy(function() {
 });
 
 var init_declarator_list = lazy(function() {
-    return (
+    return single_declaration.then( (
             ( COMMA.then(IDENTIFIER).then(LEFT_BRACKET).then(RIGHT_BRACKET) )
             .or( COMMA.then(IDENTIFIER).then(LEFT_BRACKET).then(constant_expression)
                 .then( RIGHT_BRACKET ) )
@@ -440,13 +435,13 @@ var init_declarator_list = lazy(function() {
                 .then(RIGHT_BRACKET).then(EQUAL).then(initializer) )
             .or( COMMA.then(IDENTIFIER).then(EQUAL).then(initializer) )
             .or( COMMA.then(IDENTIFIER) )
-    ).many().then( single_declaration );
+        ).many() );
 });
 
 var single_declaration = lazy(function() {
-    return ( fully_specified_type.then(IDENTIFIER).then(LEFT_BRACKET).then(RIGHT_BRACKET) )
+    return ( fully_specified_type.then(IDENTIFIER).then(LEFT_BRACKET).then(RIGHT_BRACKET).then(EQUAL).then(initializer) )
+        .or( fully_specified_type.then(IDENTIFIER).then(LEFT_BRACKET).then(RIGHT_BRACKET) )
         .or( fully_specified_type.then(IDENTIFIER).then(LEFT_BRACKET).then(constant_expression).then(RIGHT_BRACKET) )
-        .or( fully_specified_type.then(IDENTIFIER).then(LEFT_BRACKET).then(RIGHT_BRACKET).then(EQUAL).then(initializer) )
         .or( fully_specified_type.then(IDENTIFIER).then(LEFT_BRACKET).then(constant_expression) )
         .or( RIGHT_BRACKET.then(EQUAL).then(initializer) )
         .or( fully_specified_type.then(IDENTIFIER).then(EQUAL).then(initializer) )
@@ -596,11 +591,19 @@ var condition = lazy(function() {
         .or( expression );
 });
 
+// I modified the last line of this because it was looping through
+// statement_no_new_scope > simple_statement forever
+//var iteration_statement = lazy(function() {
+    //return ( WHILE.then(LEFT_PAREN).then(condition).then(RIGHT_PAREN).then(statement_no_new_scope) )
+        //.or( DO.then(statement).then(WHILE).then(LEFT_PAREN).then(expression).then(RIGHT_PAREN).then(SEMICOLON) )
+        //.or( FOR.then(LEFT_PAREN).then(for_init_statement).then(for_rest_statement).then(RIGHT_PAREN) )
+        //.or( statement_no_new_scope );
+//});
+
 var iteration_statement = lazy(function() {
     return ( WHILE.then(LEFT_PAREN).then(condition).then(RIGHT_PAREN).then(statement_no_new_scope) )
         .or( DO.then(statement).then(WHILE).then(LEFT_PAREN).then(expression).then(RIGHT_PAREN).then(SEMICOLON) )
-        .or( FOR.then(LEFT_PAREN).then(for_init_statement).then(for_rest_statement).then(RIGHT_PAREN) )
-        .or( statement_no_new_scope );
+        .or( FOR.then(LEFT_PAREN).then(for_init_statement).then(for_rest_statement).then(RIGHT_PAREN).then( statement_no_new_scope ) );
 });
 
 var for_init_statement = lazy(function() {
@@ -610,9 +613,7 @@ var for_init_statement = lazy(function() {
 
 var conditionopt = lazy(function() {
     return condition
-        .or( succeed() ).map(function() {
-            console.log('fuck');
-        });
+        .or( succeed() );
 });
 
 var for_rest_statement = lazy(function() {
@@ -645,19 +646,15 @@ var function_definition = lazy(function() {
 
 var p = statement_list;
 
-console.log( simple_statement.parse( 'vec3 a;' ) );
-
-("\
-const float c[3] = float[3](5.0, 7.2, 1.1);\
+console.log(  statement_list.parse("\
 struct light {\
     float intensity;\
     vec3 position;\
 } lightVar;\
-mat3(float, float, boat, // inline comment\n\
+mat3(float, float, float,\n\
  float, float, float,\n\
  float, float, float);\n\
-mat2(float)\
-\
+mat2(float);\
 void main() {\
     vec4 glow = a + b;\
     return glow;\
@@ -680,7 +677,6 @@ for(int i=0;i<int(uLightCount);++i) {\
 vec2 a = vec2(1.0, 2.0);\
 varying float intensity;\
 main( 1, 2 );\
- "
-);
+ "));
 
 }());
