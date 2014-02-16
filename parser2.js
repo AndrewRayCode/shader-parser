@@ -5,7 +5,7 @@ var seq = Parsimmon.seq;
 var lazy = Parsimmon.lazy;
 var optWhitespace = Parsimmon.optWhitespace;
 
-(function() {
+//(function() {
 
 var escapeRegex = function( str ) {
     return (str + '').replace(/([.?*+^$[\]\\(){}|-])/g, "\\$1");
@@ -106,7 +106,7 @@ var
     FLOATCONSTANT = regex('FLOATCONSTANT'),
     INTCONSTANT = regex('INTCONSTANT'),
     BOOLCONSTANT = regex('BOOLCONSTANT'),
-    FIELD_SELECTION = regex('FIELD_SELECTION'),
+    FIELD_SELECTION = IDENTIFIER, // this is not clearly defined in the spec
     INVARIANT = regex('INVARIANT'),
 
     // Operations
@@ -165,11 +165,11 @@ var variable_identifier = lazy(function() {
 });
 
 var primary_expression = lazy(function() {
-    return ( variable_identifier )
+    return ( LEFT_PAREN.then(expression).then(RIGHT_PAREN) )
         .or( INTCONSTANT )
         .or( FLOATCONSTANT )
         .or( BOOLCONSTANT )
-        .or( LEFT_PAREN.then(expression).then(RIGHT_PAREN) );
+        .or( variable_identifier );
 });
 
 /*
@@ -221,7 +221,7 @@ var a = c.then( b.many() )
 //d.then( c.or( e ).many() );
 
 var postfix_expression = lazy(function() {
-    return primary_expression.then(
+    return function_call.or( primary_expression ).then(
         (
             ( LEFT_BRACKET.then(integer_expression).then(RIGHT_BRACKET) )
                 .or( DOT.then(function_call_generic) )
@@ -254,6 +254,13 @@ var function_call_header_no_parameters = lazy(function() {
     return ( function_call_header.then(VOID) )
         .or( function_call_header );
 });
+
+//function_call_header_with_parameters:
+ //function_call_header assignment_expression
+ //function_call_header_with_parameters COMMA assignment_expression
+
+// a = b c | a q c
+// a = ( b c ) ( q c )*
 
 var function_call_header_with_parameters = lazy(function() {
     return ( function_call_header.then(assignment_expression) ).then(
@@ -369,8 +376,16 @@ var assignment_operator = lazy(function() {
         .or( OR_ASSIGN );
 });
 
+
+//expression:
+    //assignment_expression
+    //expression COMMA assignment_expression
+
+// a = b | a q b
+// b ( q b ) *
+
 var expression = lazy(function() {
-    return ( COMMA.then(assignment_expression) ).many().then( assignment_expression );
+    return assignment_expression.then( ( COMMA.then(assignment_expression) ).many() );
 });
 
 var constant_expression = lazy(function() {
@@ -591,15 +606,6 @@ var condition = lazy(function() {
         .or( expression );
 });
 
-// I modified the last line of this because it was looping through
-// statement_no_new_scope > simple_statement forever
-//var iteration_statement = lazy(function() {
-    //return ( WHILE.then(LEFT_PAREN).then(condition).then(RIGHT_PAREN).then(statement_no_new_scope) )
-        //.or( DO.then(statement).then(WHILE).then(LEFT_PAREN).then(expression).then(RIGHT_PAREN).then(SEMICOLON) )
-        //.or( FOR.then(LEFT_PAREN).then(for_init_statement).then(for_rest_statement).then(RIGHT_PAREN) )
-        //.or( statement_no_new_scope );
-//});
-
 var iteration_statement = lazy(function() {
     return ( WHILE.then(LEFT_PAREN).then(condition).then(RIGHT_PAREN).then(statement_no_new_scope) )
         .or( DO.then(statement).then(WHILE).then(LEFT_PAREN).then(expression).then(RIGHT_PAREN).then(SEMICOLON) )
@@ -646,15 +652,24 @@ var function_definition = lazy(function() {
 
 var p = statement_list;
 
+console.log( statement.parse('a(1.0);') );
+
+console.log(  function_call_generic.parse("\
+mat3( 1.0 )"));
+   //1.2, 2.2, 3.2,\
+   //1.3, 2.3, 3.3 );\
+ //"));
+
+
 console.log(  statement_list.parse("\
 struct light {\
-    float intensity;\
+    float intensity; // meow\n\
     vec3 position;\
 } lightVar;\
-mat3(float, float, float,\n\
- float, float, float,\n\
- float, float, float);\n\
-mat2(float);\
+mat3 m = mat3( 1.1, 2.1, 3.1, // first column (not row!)\n\
+   1.2, 2.2, 3.2, // second column\n\
+   1.3, 2.3, 3.3 );  // third column\n\
+mat2 mm = mat2( 1.0 );\
 void main() {\
     vec4 glow = a + b;\
     return glow;\
@@ -679,4 +694,4 @@ varying float intensity;\
 main( 1, 2 );\
  "));
 
-}());
+//}());
