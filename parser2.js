@@ -32,6 +32,10 @@ var ws = function( f ) {
     return skipAll.then( f ).skip( skipAll );
 };
 
+//ws = function( f ) {
+    //return f;
+//};
+
 // Can this be done better?
 var string = function(s) {
     return ws( _string(s) );
@@ -172,13 +176,63 @@ var primary_expression = lazy(function() {
         .or( LEFT_PAREN.then(expression).then(RIGHT_PAREN) );
 });
 
+/*
+i'm trying to de-recurse
+
+var a = ( a.then(b) || c )
+a = a b | c    is    c b*
+
+cuz 'a b' can either be 'c b' or '(a b) b', and '(a b) b' can either be 'c b b' or '(a b) b b', and so on ..
+
+var a = a.then( b ) || c
+var a = c.then( b.many() )
+*/
+
+//var postfix_expression = primary_expression.then(DOT.then(FIELD_SELECTION).many());
+
+//var postfix_expression = lazy(function() {
+    //return primary_expression
+        //.or( postfix_expression.then(DOT).then(FIELD_SELECTION) );
+//});
+
+//var postfix_expression = lazy(function() {
+    //return primary_expression.then( DOT.then(FIELD_SELECTION).many() );
+//});
+
+// a = b || a.then( c ) || a.then( d )
+
+// b (c | d)*
+
+// a = b || a.then( c ) || a.then( d ) || f || g
+
+// b c
+// b d
+// f c
+// f d
+// f
+//
+// f ( f c )
+// f ( f d )
+// b ( b c )
+// b ( b d )
+
+// ( b || f || g ) ( c || d )*
+
+// b (c | d)*
+
+//d.or( a.then( c ) ).or( a.then( e ).or( f );
+
+//d.then( c.or( e ).many() );
+
 var postfix_expression = lazy(function() {
-    return primary_expression
-        .or( postfix_expression.then(LEFT_BRACKET).then(integer_expression).then(RIGHT_BRACKET) )
-        .or( function_call )
-        .or( postfix_expression.then(DOT).then(FIELD_SELECTION) )
-        .or( postfix_expression.then(INC_OP) )
-        .or( postfix_expression.then(DEC_OP) );
+    return primary_expression.or( function_call ).then(
+        (
+            ( LEFT_BRACKET.then(integer_expression).then(RIGHT_BRACKET) )
+                .or( DOT.then(FIELD_SELECTION) )
+                .or( INC_OP )
+                .or( DEC_OP )
+        ).many()
+    );
 });
 
 var integer_expression = lazy(function() {
@@ -205,8 +259,9 @@ var function_call_header_no_parameters = lazy(function() {
 });
 
 var function_call_header_with_parameters = lazy(function() {
-    return ( function_call_header.then(assignment_expression) )
-        .or( function_call_header_with_parameters.then(COMMA).then(assignment_expression) );
+    return ( function_call_header.then(assignment_expression) ).then(
+        ( COMMA.then(assignment_expression) ).many()
+    );
 });
 
 var function_call_header = lazy(function() {
@@ -220,10 +275,7 @@ var function_identifier = lazy(function() {
 });
 
 var unary_expression = lazy(function() {
-    return postfix_expression
-        .or( INC_OP.then(unary_expression) )
-        .or( DEC_OP.then(unary_expression) )
-        .or( unary_operator.then(unary_expression) );
+    return ( INC_OP.or( DEC_OP ).or( unary_operator ) ).many().then( postfix_expression );
 });
 
 var unary_operator = lazy(function() {
@@ -234,76 +286,76 @@ var unary_operator = lazy(function() {
 });
 
 var multiplicative_expression = lazy(function() {
-    return unary_expression
-        .or( multiplicative_expression.then(STAR).then(unary_expression) )
-        .or( multiplicative_expression.then(SLASH).then(unary_expression) )
-        .or( multiplicative_expression.then(PERCENT).then(unary_expression) );
+    return (
+        STAR.then(unary_expression)
+        .or( SLASH.then(unary_expression) )
+        .or( PERCENT.then(unary_expression) )
+    ).many().then( unary_expression );
 });
 
 var additive_expression = lazy(function() {
-    return multiplicative_expression
-        .or( additive_expression.then(PLUS).then(multiplicative_expression) )
-        .or( additive_expression.then(DASH).then(multiplicative_expression) );
+    return (
+        PLUS.then(multiplicative_expression)
+            .or( DASH.then(multiplicative_expression) )
+    ).many().then( multiplicative_expression );
 });
 
 var shift_expression = lazy(function() {
-    return additive_expression
-        .or( shift_expression.then(LEFT_OP).then(additive_expression) )
-        .or( shift_expression.then(RIGHT_OP).then(additive_expression) );
+    return (
+        LEFT_OP.then(additive_expression)
+            .or( RIGHT_OP.then(additive_expression) )
+    ).many().then( additive_expression );
 });
 
 var relational_expression = lazy(function() {
-    return shift_expression
-        .or( relational_expression.then(LEFT_ANGLE).then(shift_expression) )
-        .or( relational_expression.then(RIGHT_ANGLE).then(shift_expression) )
-        .or( relational_expression.then(LE_OP).then(shift_expression) )
-        .or( relational_expression.then(GE_OP).then(shift_expression) );
+    return (
+        LEFT_ANGLE.then(shift_expression)
+            .or( RIGHT_ANGLE.then(shift_expression) )
+            .or( LE_OP.then(shift_expression) )
+            .or( GE_OP.then(shift_expression) )
+    ).many().then( shift_expression );
 });
 
 var equality_expression = lazy(function() {
-    return relational_expression
-        .or( equality_expression.then(EQ_OP).then(relational_expression) )
-        .or( equality_expression.then(NE_OP).then(relational_expression) );
+    return (
+        EQ_OP.then(relational_expression)
+            .or( NE_OP.then(relational_expression) )
+    ).many().then( relational_expression );
 });
 
 var and_expression = lazy(function() {
-    return equality_expression
-        .or( and_expression.then(AMPERSAND).then(equality_expression) );
+    return ( AMPERSAND.then(equality_expression) ).many().then( equality_expression );
 });
 
 var exclusive_or_expression = lazy(function() {
-    return and_expression
-        .or( exclusive_or_expression.then(CARET).then(and_expression) );
+    return ( CARET.then(and_expression) ).many().then( and_expression );
 });
 
 var inclusive_or_expression = lazy(function() {
-    return exclusive_or_expression
-        .or( inclusive_or_expression.then(VERTICAL_BAR).then(exclusive_or_expression) );
+    return ( VERTICAL_BAR.then(exclusive_or_expression) ).many().then( exclusive_or_expression );
 });
 
 var logical_and_expression = lazy(function() {
-    return inclusive_or_expression
-        ( logical_and_expression.then(AND_OP).then(inclusive_or_expression) );
+    return ( AND_OP.then(inclusive_or_expression) ).many().then( inclusive_or_expression );
 });
 
 var logical_xor_expression = lazy(function() {
-    return logical_and_expression
-        .or( logical_xor_expression.then(XOR_OP).then(logical_and_expression) );
+    return ( XOR_OP.then(logical_and_expression) ).many().then( logical_and_expression );
 });
 
 var logical_or_expression = lazy(function() {
-    return logical_xor_expression
-            .or( logical_or_expression.then(OR_OP).then(logical_xor_expression) );
+    return ( OR_OP.then(logical_xor_expression) ).many().then( logical_xor_expression );
 });
 
 var conditional_expression = lazy(function() {
-    return logical_or_expression
-        ( logical_or_expression.then(QUESTION).then(expression).then(COLON).then(assignment_expression) );
+    return ( logical_or_expression.then(QUESTION).then(expression).then(COLON).then(assignment_expression) )
+        .or( logical_or_expression );
 });
 
 var assignment_expression = lazy(function() {
-    return conditional_expression
-        .or( unary_expression.then(assignment_operator).then(assignment_expression) );
+    return (
+        unary_expression.then(assignment_operator)
+    ).many().then( conditional_expression );
 });
 
 var assignment_operator = lazy(function() {
@@ -321,8 +373,7 @@ var assignment_operator = lazy(function() {
 });
 
 var expression = lazy(function() {
-    return assignment_expression
-        .or( expression.then(COMMA).then(assignment_expression) );
+    return ( COMMA.then(assignment_expression) ).many().then( assignment_expression );
 });
 
 var constant_expression = lazy(function() {
@@ -331,10 +382,7 @@ var constant_expression = lazy(function() {
 
 var declaration = lazy(function() {
     return ( function_prototype.then(SEMICOLON) )
-        .or( init_declarator_list.then(SEMICOLON) ).map(function(a) {
-            console.log(a);
-            return a;
-        });
+        .or( init_declarator_list.then(SEMICOLON) );
 });
 
 var function_prototype = lazy(function() {
@@ -342,13 +390,14 @@ var function_prototype = lazy(function() {
 });
 
 var function_declarator = lazy(function() {
-    return function_header
-        .or( function_header_with_parameters );
+    return function_header_with_parameters
+        .or( function_header );
 });
 
 var function_header_with_parameters = lazy(function() {
-    return ( function_header.then(parameter_declaration) )
-        .or( function_header_with_parameters.then(COMMA).then(parameter_declaration) );
+    return ( function_header.then(parameter_declaration) ).then(
+        ( COMMA.then(parameter_declaration) ).many()
+    );
 });
 
 var function_header = lazy(function() {
@@ -356,8 +405,8 @@ var function_header = lazy(function() {
 });
 
 var parameter_declarator = lazy(function() {
-    return ( type_specifier.then(IDENTIFIER) )
-        .or( type_specifier.then(IDENTIFIER).then(LEFT_BRACKET).then(constant_expression).then(RIGHT_BRACKET) );
+    return ( type_specifier.then(IDENTIFIER).then(LEFT_BRACKET).then(constant_expression).then(RIGHT_BRACKET) )
+        .or( type_specifier.then(IDENTIFIER) );
 });
 
 var parameter_declaration = lazy(function() {
@@ -371,7 +420,9 @@ var parameter_qualifier = lazy(function() {
     return IN
         .or( OUT )
         .or( INOUT )
-        .or( succeed() );
+        .or( succeed() ).map(function() {
+            console.log('fuck');
+        });
 });
 
 var parameter_type_specifier = lazy(function() {
@@ -379,33 +430,34 @@ var parameter_type_specifier = lazy(function() {
 });
 
 var init_declarator_list = lazy(function() {
-    return single_declaration
-        .or( init_declarator_list.then(COMMA).then(IDENTIFIER) )
-        .or( init_declarator_list.then(COMMA).then(IDENTIFIER).then(LEFT_BRACKET).then(RIGHT_BRACKET) )
-        .or( init_declarator_list.then(COMMA).then(IDENTIFIER).then(LEFT_BRACKET).then(constant_expression)
-            .then( RIGHT_BRACKET ) )
-        .or( init_declarator_list.then(COMMA).then(IDENTIFIER).then(LEFT_BRACKET)
-            .then( RIGHT_BRACKET).then(EQUAL).then(initializer) )
-        .or( init_declarator_list.then(COMMA).then(IDENTIFIER).then(LEFT_BRACKET).then(constant_expression)
-            .then(RIGHT_BRACKET).then(EQUAL).then(initializer) )
-        .or( init_declarator_list.then(COMMA).then(IDENTIFIER).then(EQUAL).then(initializer) );
+    return (
+            ( COMMA.then(IDENTIFIER).then(LEFT_BRACKET).then(RIGHT_BRACKET) )
+            .or( COMMA.then(IDENTIFIER).then(LEFT_BRACKET).then(constant_expression)
+                .then( RIGHT_BRACKET ) )
+            .or( COMMA.then(IDENTIFIER).then(LEFT_BRACKET)
+                .then( RIGHT_BRACKET).then(EQUAL).then(initializer) )
+            .or( COMMA.then(IDENTIFIER).then(LEFT_BRACKET).then(constant_expression)
+                .then(RIGHT_BRACKET).then(EQUAL).then(initializer) )
+            .or( COMMA.then(IDENTIFIER).then(EQUAL).then(initializer) )
+            .or( COMMA.then(IDENTIFIER) )
+    ).many().then( single_declaration );
 });
 
 var single_declaration = lazy(function() {
-    return fully_specified_type
-        .or( fully_specified_type.then(IDENTIFIER) )
-        .or( fully_specified_type.then(IDENTIFIER).then(LEFT_BRACKET).then(RIGHT_BRACKET) )
+    return ( fully_specified_type.then(IDENTIFIER).then(LEFT_BRACKET).then(RIGHT_BRACKET) )
         .or( fully_specified_type.then(IDENTIFIER).then(LEFT_BRACKET).then(constant_expression).then(RIGHT_BRACKET) )
         .or( fully_specified_type.then(IDENTIFIER).then(LEFT_BRACKET).then(RIGHT_BRACKET).then(EQUAL).then(initializer) )
         .or( fully_specified_type.then(IDENTIFIER).then(LEFT_BRACKET).then(constant_expression) )
         .or( RIGHT_BRACKET.then(EQUAL).then(initializer) )
         .or( fully_specified_type.then(IDENTIFIER).then(EQUAL).then(initializer) )
-        .or( INVARIANT.then(IDENTIFIER) );
+        .or( INVARIANT.then(IDENTIFIER) )
+        .or( fully_specified_type.then(IDENTIFIER) )
+        .or( fully_specified_type );
 });
 
 var fully_specified_type = lazy(function() {
-    return type_specifier
-        .or( type_qualifier.then(type_specifier) );
+    return ( type_qualifier.then(type_specifier) )
+        .or( type_specifier );
 });
 
 var type_qualifier = lazy(function() {
@@ -419,8 +471,8 @@ var type_qualifier = lazy(function() {
 });
 
 var type_specifier = lazy(function() {
-    return type_specifier_nonarray
-        .or( type_specifier_nonarray.then(LEFT_BRACKET).then(constant_expression).then(RIGHT_BRACKET) );
+    return ( type_specifier_nonarray.then(LEFT_BRACKET).then(constant_expression).then(RIGHT_BRACKET) )
+        .or( type_specifier_nonarray );
 });
 
 var type_specifier_nonarray = lazy(function() {
@@ -465,8 +517,9 @@ var struct_specifier = lazy(function() {
 });
 
 var struct_declaration_list = lazy(function() {
-    return struct_declaration
-        .or(struct_declaration_list).then(struct_declaration);
+    return struct_declaration.then(
+        struct_declaration.many()
+    );
 });
 
 var struct_declaration = lazy(function() {
@@ -474,13 +527,14 @@ var struct_declaration = lazy(function() {
 });
 
 var struct_declarator_list = lazy(function() {
-    return ( struct_declarator )
-        .or( struct_declarator_list.then(COMMA).then(struct_declarator) );
+    return struct_declarator.then(
+        ( COMMA.then(struct_declarator) ).many()
+    );
 });
 
 var struct_declarator = lazy(function() {
-    return IDENTIFIER
-        .or( IDENTIFIER.then(LEFT_BRACKET).then(constant_expression).then(RIGHT_BRACKET) );
+    return ( IDENTIFIER.then(LEFT_BRACKET).then(constant_expression).then(RIGHT_BRACKET) )
+        .or( IDENTIFIER );
 });
 
 var initializer = lazy(function() {
@@ -520,13 +574,12 @@ var compound_statement_no_new_scope = lazy(function() {
 });
 
 var statement_list = lazy(function() {
-    return statement
-        .or( statement_list.then(statement) );
+    return statement.many();
 });
 
 var expression_statement = lazy(function() {
-    return ( SEMICOLON )
-        .or( expression.then(SEMICOLON) );
+    return ( expression.then(SEMICOLON) )
+        .or( SEMICOLON );
 });
 
 var selection_statement = lazy(function() {
@@ -539,8 +592,8 @@ var selection_rest_statement = lazy(function() {
 });
 
 var condition = lazy(function() {
-    return expression
-        .or( fully_specified_type.then(IDENTIFIER).then(EQUAL).then(initializer) );
+    return ( fully_specified_type.then(IDENTIFIER).then(EQUAL).then(initializer) )
+        .or( expression );
 });
 
 var iteration_statement = lazy(function() {
@@ -557,12 +610,14 @@ var for_init_statement = lazy(function() {
 
 var conditionopt = lazy(function() {
     return condition
-        .or( succeed() );
+        .or( succeed() ).map(function() {
+            console.log('fuck');
+        });
 });
 
 var for_rest_statement = lazy(function() {
-    return ( conditionopt.then(SEMICOLON) )
-        .or( conditionopt.then(SEMICOLON).then(expression) );
+    return ( conditionopt.then(SEMICOLON).then(expression) )
+        .or( conditionopt.then(SEMICOLON) );
 });
 
 var jump_statement = lazy(function() {
@@ -574,8 +629,9 @@ var jump_statement = lazy(function() {
 });
 
 var translation_unit = lazy(function() {
-    return ( external_declaration )
-        .or( translation_unit.then(external_declaration) );
+    return external_declaration.then(
+        external_declaration.many()
+    );
 });
 
 var external_declaration = lazy(function() {
@@ -589,9 +645,9 @@ var function_definition = lazy(function() {
 
 var p = statement_list;
 
-console.log( p.parse( 'vec3 a;' ) );
+console.log( simple_statement.parse( 'vec3 a;' ) );
 
-console.log("\
+("\
 const float c[3] = float[3](5.0, 7.2, 1.1);\
 struct light {\
     float intensity;\
