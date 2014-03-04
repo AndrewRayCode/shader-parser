@@ -16,68 +16,9 @@
     "mootools" : true,
     "dojo" : false,
 
-    "predef" : [ // Extra globals.
-        // mocha stuff
-        "it",
-        "describe",
-        "before",
-        "after",
-        "afterEach",
-        "beforeEach",
-        "google",
-        // crowdtilt globals
-        "CT",
-        "mixpanel",
-        "heap",
-        "Backbone",
-        "FB",
-        "WL",
-        "_",
-        "ZeroClipboard",
-        "wysihtml5",
-        "wysihtml5ParserRules",
-        "fn_vidyard_GheqoUY7tjf9Sq1mRJSFPA", // :(
-        "TDFriendSelector",
-        "Jemplate",
-        "_gaq",
-        "Parsimmon",
-        "P",
-
-        // threejs testing
-        "test",
-        "ok",
-
-        // bash prompt builder
-        "ko",
-        "MooDialog",
-
-        // Three
-        "THREE",
-        "Mousetrap",
-        "Q",
-        "xyz",
-        "World",
-        "Mixin",
-        "Game",
-        "Level",
-        "Player",
-        "Camera",
-        "Utils",
-        "Factory",
-        "Thing",
-        "Mine",
-        "Floater",
-        "Shader",
-        "Graph",
-        "GraphNode",
-        "Zig",
-        "Bend",
-        "Chamfer",
-        "Stairs",
-        "Transition",
-        "Transitions",
-        "GraphBuilder",
-        "Stairs"
+    "predef" : [
+        "Ast",
+        "_"
     ],
 
 
@@ -116,8 +57,7 @@
 
 
     // Persone styling prefrences.
-    "newcap" : false, // Require capitalization of all constructor functions e.g. `new F()`.
-    "multistr" : true,
+    "newcap" : true, // Require capitalization of all constructor functions e.g. `new F()`.
     "noempty" : true, // Prohibit use of empty blocks.
     "nonew" : true, // Prohibit use of constructors for side-effects.
     "nomen" : false, // Prohibit use of initial or trailing underbars in names.

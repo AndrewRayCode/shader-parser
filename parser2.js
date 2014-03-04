@@ -50,14 +50,18 @@ var regex = function(r) {
 var
 
     // User tokens
-    FLOAT = regex(/^-?\d+(([.]|e[+-]?)\d+)?/i),
-    INT = regex(/^-?\d+/i),
+    FLOATCONSTANT = regex(/^-?\d+(([.]|e[+-]?)\d+)?/i),
+    INTCONSTANT = regex(/^-?\d+/i),
+    BOOLCONSTANT = regex(/true|false/),
     IDENTIFIER = regex(/^[a-z_][a-z0-9_]*/i),
     TYPE_NAME = regex(/^[a-z_][a-z0-9_]*/i), // ? Can't find this in spec
+    FIELD_SELECTION = IDENTIFIER, // this is not clearly defined in the spec
 
     // Words defined by the spec
     ATTRIBUTE = regex('ATTRIBUTE'),
     CONST = regex('CONST'),
+    FLOAT = regex('FLOAT'),
+    INT = regex('INT'),
     BOOL = regex('BOOL'),
     BREAK = regex('BREAK'),
     CONTINUE = regex('CONTINUE'),
@@ -103,10 +107,6 @@ var
     STRUCT = regex('STRUCT'),
     VOID = regex('VOID'),
     WHILE = regex('WHILE'),
-    FLOATCONSTANT = regex('FLOATCONSTANT'),
-    INTCONSTANT = regex('INTCONSTANT'),
-    BOOLCONSTANT = regex('BOOLCONSTANT'),
-    FIELD_SELECTION = IDENTIFIER, // this is not clearly defined in the spec
     INVARIANT = regex('INVARIANT'),
 
     // Operations
@@ -166,8 +166,8 @@ var variable_identifier = lazy(function() {
 
 var primary_expression = lazy(function() {
     return ( LEFT_PAREN.then(expression).then(RIGHT_PAREN) )
-        .or( INTCONSTANT )
         .or( FLOATCONSTANT )
+        .or( INTCONSTANT )
         .or( BOOLCONSTANT )
         .or( variable_identifier );
 });
@@ -221,10 +221,13 @@ var a = c.then( b.many() )
 //d.then( c.or( e ).many() );
 
 var postfix_expression = lazy(function() {
-    return function_call.or( primary_expression ).then(
+    return function_call_or_method.or(
+        primary_expression
+            .or( postfix_expression.then(DOT).then(function_call_generic) )
+        ).then(
         (
             ( LEFT_BRACKET.then(integer_expression).then(RIGHT_BRACKET) )
-                .or( DOT.then(function_call_generic) )
+                //.or( DOT.then(function_call_generic) )
                 .or( DOT.then(FIELD_SELECTION) )
                 .or( INC_OP )
                 .or( DEC_OP )
@@ -236,18 +239,18 @@ var integer_expression = lazy(function() {
     return expression;
 });
 
-var function_call = lazy(function() {
-    return function_call_or_method;
-});
+//var function_call = lazy(function() {
+    //return function_call_or_method;
+//});
 
 var function_call_or_method = lazy(function() {
     return function_call_generic
-        .or( postfix_expression.then(DOT).then(function_call_generic) );
+        .or( IDENTIFIER.then(DOT).then(function_call_generic) );
 });
 
 var function_call_generic = lazy(function() {
-    return ( function_call_header_with_parameters.then(RIGHT_PAREN) )
-        .or( function_call_header_no_parameters.then(RIGHT_PAREN) );
+    return ( function_call_header_no_parameters.then(RIGHT_PAREN) )
+        .or( function_call_header_with_parameters.then(RIGHT_PAREN) );
 });
 
 var function_call_header_no_parameters = lazy(function() {
@@ -636,9 +639,7 @@ var jump_statement = lazy(function() {
 });
 
 var translation_unit = lazy(function() {
-    return external_declaration.then(
-        external_declaration.many()
-    );
+    return external_declaration.atLeast( 1 );
 });
 
 var external_declaration = lazy(function() {
@@ -652,13 +653,16 @@ var function_definition = lazy(function() {
 
 var p = statement_list;
 
-console.log( statement.parse('a(1.0);') );
+console.log(  translation_unit.parse("\
+void main() {}"));
 
-console.log(  function_call_generic.parse("\
-mat3( 1.0 )"));
-   //1.2, 2.2, 3.2,\
-   //1.3, 2.3, 3.3 );\
- //"));
+console.log( translation_unit.parse('a(1.0);') );
+
+console.log(  statement.parse("\
+mat3( 1.0, \
+   1.2, 2.2, 3.2,\
+   1.3, 2.3, 3.3 );\
+ "));
 
 
 console.log(  statement_list.parse("\
