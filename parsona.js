@@ -1,536 +1,568 @@
+(function() {
+
+var blockComment = regex( /\/\*.*?\*\//m );
+var lineComment = regex( /\/\/.*/i );
+
+var skipAll = regex( /^\s+/ )
+    .or( blockComment )
+    .or( lineComment )
+    .many();
+
+var escapeRegex = function( str ) {
+    return (str + '').replace(/([.?*+^$[\]\\(){}|-])/g, "\\$1");
+};
+
+var _regex = function( re ) {
+    if( typeof re === 'string' ) {
+        re = new RegExp( escapeRegex( re ), 'i' );
+    }
+    return skipAll.then( regex( re ) ).skip( skipAll );
+};
+
 var
 
     // User tokens
-    FLOATCONSTANT = regex(/^-?\d+(([.]|e[+-]?)\d+)?/i),
-    INTCONSTANT = regex(/^-?\d+/i),
-    BOOLCONSTANT = regex(/true|false/),
-    IDENTIFIER = regex(/^[a-z_][a-z0-9_]*/i),
-    TYPE_NAME = regex(/^[a-z_][a-z0-9_]*/i), // ? Can't find this in spec
+    FLOATCONSTANT = _regex(/^-?\d+(([.]|e[+-]?)\d+)?/i),
+    INTCONSTANT = _regex(/^-?\d+/i),
+    BOOLCONSTANT = _regex(/true|false/),
+    IDENTIFIER = _regex(/^[a-z_][a-z0-9_]*/i),
+    TYPE_NAME = _regex(/^[a-z_][a-z0-9_]*/i), // ? Can't find this in spec
     FIELD_SELECTION = IDENTIFIER, // this is not clearly defined in the spec
 
     // Words defined by the spec
-    ATTRIBUTE = regex('ATTRIBUTE'),
-    CONST = regex('CONST'),
-    FLOAT = regex('FLOAT'),
-    INT = regex('INT'),
-    BOOL = regex('BOOL'),
-    BREAK = regex('BREAK'),
-    CONTINUE = regex('CONTINUE'),
-    DO = regex('DO'),
-    ELSE = regex('ELSE'),
-    FOR = regex('FOR'),
-    IF = regex('IF'),
-    DISCARD = regex('DISCARD'),
-    RETURN = regex('RETURN'),
-    BVEC2 = regex('BVEC2'),
-    BVEC3 = regex('BVEC3'),
-    BVEC4 = regex('BVEC4'),
-    IVEC2 = regex('IVEC2'),
-    IVEC3 = regex('IVEC3'),
-    IVEC4 = regex('IVEC4'),
-    VEC2 = regex('VEC2'),
-    VEC3 = regex('VEC3'),
-    VEC4 = regex('VEC4'),
-    MAT2 = regex('MAT2'),
-    MAT3 = regex('MAT3'),
-    MAT4 = regex('MAT4'),
-    IN = regex('IN'),
-    OUT = regex('OUT'),
-    INOUT = regex('INOUT'),
-    UNIFORM = regex('UNIFORM'),
-    VARYING = regex('VARYING'),
-    CENTROID = regex('CENTROID'),
-    MAT2X2 = regex('MAT2X2'),
-    MAT2X3 = regex('MAT2X3'),
-    MAT2X4 = regex('MAT2X4'),
-    MAT3X2 = regex('MAT3X2'),
-    MAT3X3 = regex('MAT3X3'),
-    MAT3X4 = regex('MAT3X4'),
-    MAT4X2 = regex('MAT4X2'),
-    MAT4X3 = regex('MAT4X3'),
-    MAT4X4 = regex('MAT4X4'),
-    SAMPLER1D = regex('SAMPLER1D'),
-    SAMPLER2D = regex('SAMPLER2D'),
-    SAMPLER3D = regex('SAMPLER3D'),
-    SAMPLERCUBE = regex('SAMPLERCUBE'),
-    SAMPLER1DSHADOW = regex('SAMPLER1DSHADOW'),
-    SAMPLER2DSHADOW = regex('SAMPLER2DSHADOW'),
-    STRUCT = regex('STRUCT'),
-    VOID = regex('VOID'),
-    WHILE = regex('WHILE'),
-    INVARIANT = regex('INVARIANT'),
+    ATTRIBUTE = _regex('ATTRIBUTE'),
+    CONST = _regex('CONST'),
+    FLOAT = _regex('FLOAT'),
+    INT = _regex('INT'),
+    BOOL = _regex('BOOL'),
+    BREAK = _regex('BREAK'),
+    CONTINUE = _regex('CONTINUE'),
+    DO = _regex('DO'),
+    ELSE = _regex('ELSE'),
+    FOR = _regex('FOR'),
+    IF = _regex('IF'),
+    DISCARD = _regex('DISCARD'),
+    RETURN = _regex('RETURN'),
+    BVEC2 = _regex('BVEC2'),
+    BVEC3 = _regex('BVEC3'),
+    BVEC4 = _regex('BVEC4'),
+    IVEC2 = _regex('IVEC2'),
+    IVEC3 = _regex('IVEC3'),
+    IVEC4 = _regex('IVEC4'),
+    VEC2 = _regex('VEC2'),
+    VEC3 = _regex('VEC3'),
+    VEC4 = _regex('VEC4'),
+    MAT2 = _regex('MAT2'),
+    MAT3 = _regex('MAT3'),
+    MAT4 = _regex('MAT4'),
+    IN = _regex('IN'),
+    OUT = _regex('OUT'),
+    INOUT = _regex('INOUT'),
+    UNIFORM = _regex('UNIFORM'),
+    VARYING = _regex('VARYING'),
+    CENTROID = _regex('CENTROID'),
+    MAT2X2 = _regex('MAT2X2'),
+    MAT2X3 = _regex('MAT2X3'),
+    MAT2X4 = _regex('MAT2X4'),
+    MAT3X2 = _regex('MAT3X2'),
+    MAT3X3 = _regex('MAT3X3'),
+    MAT3X4 = _regex('MAT3X4'),
+    MAT4X2 = _regex('MAT4X2'),
+    MAT4X3 = _regex('MAT4X3'),
+    MAT4X4 = _regex('MAT4X4'),
+    SAMPLER1D = _regex('SAMPLER1D'),
+    SAMPLER2D = _regex('SAMPLER2D'),
+    SAMPLER3D = _regex('SAMPLER3D'),
+    SAMPLERCUBE = _regex('SAMPLERCUBE'),
+    SAMPLER1DSHADOW = _regex('SAMPLER1DSHADOW'),
+    SAMPLER2DSHADOW = _regex('SAMPLER2DSHADOW'),
+    STRUCT = _regex('STRUCT'),
+    VOID = _regex('VOID'),
+    WHILE = _regex('WHILE'),
+    INVARIANT = _regex('INVARIANT'),
 
     // Operations
-    INC_OP = regex('+'),
-    DEC_OP = regex('-'),
-    LE_OP = regex('<'),
-    GE_OP = regex('>'),
-    EQ_OP = regex('=='),
-    NE_OP = regex('!='),
-    AND_OP = regex('&&'),
-    OR_OP = regex('||'),
-    XOR_OP = regex('^^'),
-    LEFT_OP = regex('>>'),
-    RIGHT_OP = regex('<<'),
+    INC_OP = _regex('+'),
+    DEC_OP = _regex('-'),
+    LE_OP = _regex('<'),
+    GE_OP = _regex('>'),
+    EQ_OP = _regex('=='),
+    NE_OP = _regex('!='),
+    AND_OP = _regex('&&'),
+    OR_OP = _regex('||'),
+    XOR_OP = _regex('^^'),
+    LEFT_OP = _regex('>>'),
+    RIGHT_OP = _regex('<<'),
 
     // Assignments
-    LEFT_ASSIGN = regex('<<='),
-    RIGHT_ASSIGN = regex('>>='),
-    AND_ASSIGN = regex('&='),
-    XOR_ASSIGN = regex('^='),
-    OR_ASSIGN = regex('|='),
-    SUB_ASSIGN = regex('-='),
-    MUL_ASSIGN = regex('*='),
-    DIV_ASSIGN = regex('/='),
-    ADD_ASSIGN = regex('+='),
-    MOD_ASSIGN = regex('%='),
+    LEFT_ASSIGN = _regex('<<='),
+    RIGHT_ASSIGN = _regex('>>='),
+    AND_ASSIGN = _regex('&='),
+    XOR_ASSIGN = _regex('^='),
+    OR_ASSIGN = _regex('|='),
+    SUB_ASSIGN = _regex('-='),
+    MUL_ASSIGN = _regex('*='),
+    DIV_ASSIGN = _regex('/='),
+    ADD_ASSIGN = _regex('+='),
+    MOD_ASSIGN = _regex('%='),
 
     // Symbols
-    LEFT_PAREN = regex('('),
-    RIGHT_PAREN = regex(')'),
-    LEFT_BRACKET = regex('['),
-    RIGHT_BRACKET = regex(']'),
-    LEFT_BRACE = regex('{'),
-    RIGHT_BRACE = regex('}'),
-    DOT = regex('.'),
-    COMMA = regex(','),
-    COLON = regex(':'),
-    EQUAL = regex('='),
-    SEMICOLON = regex(';'),
-    BANG = regex('!'),
-    DASH = regex('-'),
-    TILDE = regex('~'),
-    PLUS = regex('+'),
-    STAR = regex('*'),
-    SLASH = regex('/'),
-    PERCENT = regex('%'),
-    LEFT_ANGLE = regex('<'),
-    RIGHT_ANGLE = regex('>'),
-    VERTICAL_BAR = regex('|'),
-    CARET = regex('^'),
-    AMPERSAND = regex('&'),
-    QUESTION = regex('?');
+    LEFT_PAREN = _regex('('),
+    RIGHT_PAREN = _regex(')'),
+    LEFT_BRACKET = _regex('['),
+    RIGHT_BRACKET = _regex(']'),
+    LEFT_BRACE = _regex('{'),
+    RIGHT_BRACE = _regex('}'),
+    DOT = _regex('.'),
+    COMMA = _regex(','),
+    COLON = _regex(':'),
+    EQUAL = _regex('='),
+    SEMICOLON = _regex(';'),
+    BANG = _regex('!'),
+    DASH = _regex('-'),
+    TILDE = _regex('~'),
+    PLUS = _regex('+'),
+    STAR = _regex('*'),
+    SLASH = _regex('/'),
+    PERCENT = _regex('%'),
+    LEFT_ANGLE = _regex('<'),
+    RIGHT_ANGLE = _regex('>'),
+    VERTICAL_BAR = _regex('|'),
+    CARET = _regex('^'),
+    AMPERSAND = _regex('&'),
+    QUESTION = _regex('?');
 
 
 var variable_identifier = lazy(function() {
-    IDENTIFIER
+    return IDENTIFIER;
 });
 
 var primary_expression = lazy(function() {
-    variable_identifier
-    INTCONSTANT
-    FLOATCONSTANT
-    BOOLCONSTANT
-    LEFT_PAREN expression RIGHT_PAREN
+    return ( variable_identifier )
+        .or( INTCONSTANT )
+        .or( FLOATCONSTANT )
+        .or( BOOLCONSTANT )
+        .or( LEFT_PAREN.then(expression).then(RIGHT_PAREN) );
 });
 
 var postfix_expression = lazy(function() {
-    primary_expression
-    postfix_expression LEFT_BRACKET integer_expression RIGHT_BRACKET
-    function_call
-    postfix_expression DOT FIELD_SELECTION
-    postfix_expression INC_OP
-    postfix_expression DEC_OP
+    return ( primary_expression )
+        .or( postfix_expression.then(LEFT_BRACKET).then(integer_expression).then(RIGHT_BRACKET) )
+        .or( function_call )
+        .or( postfix_expression.then(DOT).then(FIELD_SELECTION) )
+        .or( postfix_expression.then(INC_OP) )
+        .or( postfix_expression.then(DEC_OP) );
 });
 
 var integer_expression = lazy(function() {
-    expression
+    return expression;
 });
 
 var function_call = lazy(function() {
-    function_call_or_method
+    return function_call_or_method;
 });
 
 var function_call_or_method = lazy(function() {
-    function_call_generic
-    postfix_expression DOT function_call_generic
+    return ( function_call_generic )
+        .or( postfix_expression.then(DOT).then(function_call_generic) );
 });
 
 var function_call_generic = lazy(function() {
-    function_call_header_with_parameters RIGHT_PAREN
-    function_call_header_no_parameters RIGHT_PAREN
+    return ( function_call_header_with_parameters.then(RIGHT_PAREN) )
+        .or( function_call_header_no_parameters.then(RIGHT_PAREN) );
 });
 
 var function_call_header_no_parameters = lazy(function() {
-    function_call_header VOID
-    function_call_header
+    return ( function_call_header.then(VOID) )
+        .or( function_call_header );
 });
 
 var function_call_header_with_parameters = lazy(function() {
-    function_call_header assignment_expression
-    function_call_header_with_parameters COMMA assignment_expression
+    return ( function_call_header.then(assignment_expression) )
+        .or( function_call_header_with_parameters.then(COMMA).then(assignment_expression) );
 });
 
 var function_call_header = lazy(function() {
-    function_identifier LEFT_PAREN
+    return function_identifier.then( LEFT_PAREN );
 });
 
 var function_identifier = lazy(function() {
-    type_specifier
-    IDENTIFIER
-    FIELD_SELECTION
+    return ( type_specifier )
+        .or( IDENTIFIER )
+        .or( FIELD_SELECTION );
 });
 
 var unary_expression = lazy(function() {
-    postfix_expression
-    INC_OP unary_expression
-    DEC_OP unary_expression
-    unary_operator unary_expression
+    return ( postfix_expression )
+        .or( INC_OP.then(unary_expression) )
+        .or( DEC_OP.then(unary_expression) )
+        .or( unary_operator.then(unary_expression) );
 });
 
 var unary_operator = lazy(function() {
-    PLUS
-    DASH
-    BANG
-    TILDE
+    return ( PLUS )
+        .or( DASH )
+        .or( BANG )
+        .or( TILDE );
 });
 
 var multiplicative_expression = lazy(function() {
-    unary_expression
-    multiplicative_expression STAR unary_expression
-    multiplicative_expression SLASH unary_expression
-    multiplicative_expression PERCENT unary_expression
+    return ( unary_expression )
+        .or( multiplicative_expression.then(STAR).then(unary_expression) )
+        .or( multiplicative_expression.then(SLASH).then(unary_expression) )
+        .or( multiplicative_expression.then(PERCENT).then(unary_expression) );
 });
 
 var additive_expression = lazy(function() {
-    multiplicative_expression
-    additive_expression PLUS multiplicative_expression
-    additive_expression DASH multiplicative_expression
+    return ( multiplicative_expression )
+        .or( additive_expression.then(PLUS).then(multiplicative_expression) )
+        .or( additive_expression.then(DASH).then(multiplicative_expression) );
 });
 
 var shift_expression = lazy(function() {
-    additive_expression
-    shift_expression LEFT_OP additive_expression
-    shift_expression RIGHT_OP additive_expression
+    return ( additive_expression )
+        .or( shift_expression.then(LEFT_OP).then(additive_expression) )
+        .or( shift_expression.then(RIGHT_OP).then(additive_expression) );
 });
 
 var relational_expression = lazy(function() {
-    shift_expression
-    relational_expression LEFT_ANGLE shift_expression
-    relational_expression RIGHT_ANGLE shift_expression
-    relational_expression LE_OP shift_expression
-    relational_expression GE_OP shift_expression
+    return ( shift_expression )
+        .or( relational_expression.then(LEFT_ANGLE).then(shift_expression) )
+        .or( relational_expression.then(RIGHT_ANGLE).then(shift_expression) )
+        .or( relational_expression.then(LE_OP).then(shift_expression) )
+        .or( relational_expression.then(GE_OP).then(shift_expression) );
 });
 
 var equality_expression = lazy(function() {
-    relational_expression
-    equality_expression EQ_OP relational_expression
-    equality_expression NE_OP relational_expression
+    return ( relational_expression )
+        .or( equality_expression.then(EQ_OP).then(relational_expression) )
+        .or( equality_expression.then(NE_OP).then(relational_expression) );
 });
 
 var and_expression = lazy(function() {
-    equality_expression
-    and_expression AMPERSAND equality_expression
+    return ( equality_expression )
+        .or( and_expression.then(AMPERSAND).then(equality_expression) );
 });
 
 var exclusive_or_expression = lazy(function() {
-    and_expression
-    exclusive_or_expression CARET and_expression
+    return ( and_expression )
+        .or( exclusive_or_expression.then(CARET).then(and_expression) );
 });
 
 var inclusive_or_expression = lazy(function() {
-    exclusive_or_expression
-    inclusive_or_expression VERTICAL_BAR exclusive_or_expression
+    return ( exclusive_or_expression )
+        .or( inclusive_or_expression.then(VERTICAL_BAR).then(exclusive_or_expression) );
 });
 
 var logical_and_expression = lazy(function() {
-    inclusive_or_expression
-    logical_and_expression AND_OP inclusive_or_expression
+    return ( inclusive_or_expression )
+        .or( logical_and_expression.then(AND_OP).then(inclusive_or_expression) );
 });
 
 var logical_xor_expression = lazy(function() {
-    logical_and_expression
-    logical_xor_expression XOR_OP logical_and_expression
+    return ( logical_and_expression )
+        .or( logical_xor_expression.then(XOR_OP).then(logical_and_expression) );
 });
 
 var logical_or_expression = lazy(function() {
-    logical_xor_expression
-    logical_or_expression OR_OP logical_xor_expression
+    return ( logical_xor_expression )
+        .or( logical_or_expression.then(OR_OP).then(logical_xor_expression) );
 });
 
 var conditional_expression = lazy(function() {
-    logical_or_expression
-    logical_or_expression QUESTION expression COLON assignment_expression
+    return ( logical_or_expression )
+        .or( logical_or_expression.then(QUESTION).then(expression).then(COLON).then(assignment_expression) );
 });
 
 var assignment_expression = lazy(function() {
-    conditional_expression
-    unary_expression assignment_operator assignment_expression
+    return ( conditional_expression )
+        .or( unary_expression.then(assignment_operator).then(assignment_expression) );
 });
 
 var assignment_operator = lazy(function() {
-    EQUAL
-    MUL_ASSIGN
-    DIV_ASSIGN
-    MOD_ASSIGN
-    ADD_ASSIGN
-    SUB_ASSIGN
-    LEFT_ASSIGN
-    RIGHT_ASSIGN
-    AND_ASSIGN
-    XOR_ASSIGN
-    OR_ASSIGN
+    return ( EQUAL )
+        .or( MUL_ASSIGN )
+        .or( DIV_ASSIGN )
+        .or( MOD_ASSIGN )
+        .or( ADD_ASSIGN )
+        .or( SUB_ASSIGN )
+        .or( LEFT_ASSIGN )
+        .or( RIGHT_ASSIGN )
+        .or( AND_ASSIGN )
+        .or( XOR_ASSIGN )
+        .or( OR_ASSIGN );
 });
 
 var expression = lazy(function() {
-    assignment_expression
-    expression COMMA assignment_expression
+    return ( assignment_expression )
+        .or( expression.then(COMMA).then(assignment_expression) );
 });
 
 var constant_expression = lazy(function() {
-    conditional_expression
+    return conditional_expression;
 });
 
 var declaration = lazy(function() {
-    function_prototype SEMICOLON
-    init_declarator_list SEMICOLON
+    return ( function_prototype.then(SEMICOLON) )
+        .or( init_declarator_list.then(SEMICOLON) );
 });
 
 var function_prototype = lazy(function() {
-    function_declarator RIGHT_PAREN
+    return ( function_declarator ).then( RIGHT_PAREN );
 });
 
 var function_declarator = lazy(function() {
-    function_header
-    function_header_with_parameters
+    return ( function_header )
+        .or( function_header_with_parameters );
 });
 
 var function_header_with_parameters = lazy(function() {
-    function_header parameter_declaration
-    function_header_with_parameters COMMA parameter_declaration
+    return ( function_header.then(parameter_declaration) )
+        .or( function_header_with_parameters.then(COMMA).then(parameter_declaration) );
 });
 
 var function_header = lazy(function() {
-    fully_specified_type IDENTIFIER LEFT_PAREN
+    return ( fully_specified_type ).then(IDENTIFIER).then(LEFT_PAREN);
 });
 
 var parameter_declarator = lazy(function() {
-    type_specifier IDENTIFIER
-    type_specifier IDENTIFIER LEFT_BRACKET constant_expression RIGHT_BRACKET
+    return ( type_specifier.then(IDENTIFIER) )
+        .or( type_specifier.then(IDENTIFIER).then(LEFT_BRACKET).then(constant_expression).then(RIGHT_BRACKET) );
 });
 
 var parameter_declaration = lazy(function() {
-    type_qualifier parameter_qualifier parameter_declarator
-    parameter_qualifier parameter_declarator
-    type_qualifier parameter_qualifier parameter_type_specifier
-    parameter_qualifier parameter_type_specifier
+    return ( type_qualifier.then(parameter_qualifier).then(parameter_declarator) )
+        .or( parameter_qualifier.then(parameter_declarator) )
+        .or( type_qualifier.then(parameter_qualifier).then(parameter_type_specifier) )
+        .or( parameter_qualifier.then(parameter_type_specifier) );
 });
 
 var parameter_qualifier = lazy(function() {
-    /* empty */
-    IN
-    OUT
-    INOUT
+    return IN
+        .or( OUT )
+        .or( INOUT );
 });
 
 var parameter_type_specifier = lazy(function() {
-    type_specifier
+    return type_specifier;
 });
 
 var init_declarator_list = lazy(function() {
-    single_declaration
-    init_declarator_list COMMA IDENTIFIER
-    init_declarator_list COMMA IDENTIFIER LEFT_BRACKET RIGHT_BRACKET
-    init_declarator_list COMMA IDENTIFIER LEFT_BRACKET constant_expression
-    RIGHT_BRACKET
-    init_declarator_list COMMA IDENTIFIER LEFT_BRACKET
-    RIGHT_BRACKET EQUAL initializer
-    init_declarator_list COMMA IDENTIFIER LEFT_BRACKET constant_expression
-    RIGHT_BRACKET EQUAL initializer
-    init_declarator_list COMMA IDENTIFIER EQUAL initializer
+    return ( single_declaration )
+        .or( init_declarator_list.then(COMMA).then(IDENTIFIER) )
+        .or( init_declarator_list.then(COMMA).then(IDENTIFIER).then(LEFT_BRACKET).then(RIGHT_BRACKET) )
+        .or( init_declarator_list.then(COMMA).then(IDENTIFIER).then(LEFT_BRACKET).then(constant_expression) )
+        .or( RIGHT_BRACKET )
+        .or( init_declarator_list.then(COMMA).then(IDENTIFIER).then(LEFT_BRACKET) )
+        .or( RIGHT_BRACKET.then(EQUAL).then(initializer) )
+        .or( init_declarator_list.then(COMMA).then(IDENTIFIER).then(LEFT_BRACKET).then(constant_expression) )
+        .or( RIGHT_BRACKET.then(EQUAL).then(initializer) )
+        .or( init_declarator_list.then(COMMA).then(IDENTIFIER).then(EQUAL).then(initializer) );
 });
 
 var single_declaration = lazy(function() {
-    fully_specified_type
-    fully_specified_type IDENTIFIER
-    fully_specified_type IDENTIFIER LEFT_BRACKET RIGHT_BRACKET
-    fully_specified_type IDENTIFIER LEFT_BRACKET constant_expression RIGHT_BRACKET
-    fully_specified_type IDENTIFIER LEFT_BRACKET RIGHT_BRACKET EQUAL initializer
-    fully_specified_type IDENTIFIER LEFT_BRACKET constant_expression
-    RIGHT_BRACKET EQUAL initializer
-    fully_specified_type IDENTIFIER EQUAL initializer
-    INVARIANT IDENTIFIER
+    return ( fully_specified_type )
+        .or( fully_specified_type.then(IDENTIFIER) )
+        .or( fully_specified_type.then(IDENTIFIER).then(LEFT_BRACKET).then(RIGHT_BRACKET) )
+        .or( fully_specified_type.then(IDENTIFIER).then(LEFT_BRACKET).then(constant_expression).then(RIGHT_BRACKET) )
+        .or( fully_specified_type.then(IDENTIFIER).then(LEFT_BRACKET).then(RIGHT_BRACKET).then(EQUAL).then(initializer) )
+        .or( fully_specified_type.then(IDENTIFIER).then(LEFT_BRACKET).then(constant_expression) )
+        .or( RIGHT_BRACKET.then(EQUAL).then(initializer) )
+        .or( fully_specified_type.then(IDENTIFIER).then(EQUAL).then(initializer) )
+        .or( INVARIANT.then(IDENTIFIER) );
 });
 
 var fully_specified_type = lazy(function() {
-    type_specifier
-    type_qualifier type_specifier
+    return ( type_specifier )
+        .or( type_qualifier.then(type_specifier) );
 });
 
 var type_qualifier = lazy(function() {
-    CONST
-    ATTRIBUTE
-    VARYING
-    CENTROID VARYING
-    INVARIANT VARYING
-    INVARIANT CENTROID VARYING
-    UNIFORM
+    return ( CONST )
+        .or( ATTRIBUTE )
+        .or( VARYING )
+        .or( CENTROID.then(VARYING) )
+        .or( INVARIANT.then(VARYING) )
+        .or( INVARIANT.then(CENTROID).then(VARYING) )
+        .or( UNIFORM );
 });
 
 var type_specifier = lazy(function() {
-    type_specifier_nonarray
-    type_specifier_nonarray LEFT_BRACKET constant_expression RIGHT_BRACKET
+    return ( type_specifier_nonarray )
+        .or( type_specifier_nonarray.then(LEFT_BRACKET).then(constant_expression).then(RIGHT_BRACKET) );
 });
 
 var type_specifier_nonarray = lazy(function() {
-    VOID
-    FLOAT
-    INT
-    BOOL
-    VEC2
-    VEC3
-    VEC4
-    BVEC2
-    BVEC3
-    BVEC4
-    IVEC2
-    IVEC3
-    IVEC4
-    MAT2
-    MAT3
-    MAT4
-    MAT2X2
-    MAT2X3
-    MAT2X4
-    MAT3X2
-    MAT3X3
-    MAT3X4
-    MAT4X2
-    MAT4X3
-    MAT4X4
-    SAMPLER1D
-    SAMPLER2D
-    SAMPLER3D
-    SAMPLERCUBE
-    SAMPLER1DSHADOW
-    SAMPLER2DSHADOW
-    struct_specifier
-    TYPE_NAME
+    return ( VOID )
+        .or( FLOAT )
+        .or( INT )
+        .or( BOOL )
+        .or( VEC2 )
+        .or( VEC3 )
+        .or( VEC4 )
+        .or( BVEC2 )
+        .or( BVEC3 )
+        .or( BVEC4 )
+        .or( IVEC2 )
+        .or( IVEC3 )
+        .or( IVEC4 )
+        .or( MAT2 )
+        .or( MAT3 )
+        .or( MAT4 )
+        .or( MAT2X2 )
+        .or( MAT2X3 )
+        .or( MAT2X4 )
+        .or( MAT3X2 )
+        .or( MAT3X3 )
+        .or( MAT3X4 )
+        .or( MAT4X2 )
+        .or( MAT4X3 )
+        .or( MAT4X4 )
+        .or( SAMPLER1D )
+        .or( SAMPLER2D )
+        .or( SAMPLER3D )
+        .or( SAMPLERCUBE )
+        .or( SAMPLER1DSHADOW )
+        .or( SAMPLER2DSHADOW )
+        .or( struct_specifier )
+        .or( TYPE_NAME );
 });
 
 var struct_specifier = lazy(function() {
-    STRUCT IDENTIFIER LEFT_BRACE struct_declaration_list RIGHT_BRACE
-    STRUCT LEFT_BRACE struct_declaration_list RIGHT_BRACE
+    return ( STRUCT.then(IDENTIFIER).then(LEFT_BRACE).then(struct_declaration_list).then(RIGHT_BRACE) )
+        .or( STRUCT.then(LEFT_BRACE).then(struct_declaration_list).then(RIGHT_BRACE) );
 });
 
 var struct_declaration_list = lazy(function() {
-    struct_declaration
-    struct_declaration_list struct_declaration
+    return ( struct_declaration )
+        .or( struct_declaration_list.then(struct_declaration) );
 });
 
 var struct_declaration = lazy(function() {
-    type_specifier struct_declarator_list SEMICOLON
+    return ( type_specifier.then(struct_declarator_list).then(SEMICOLON) );
 });
 
 var struct_declarator_list = lazy(function() {
-    struct_declarator
-    struct_declarator_list COMMA struct_declarator
+    return ( struct_declarator )
+        .or( struct_declarator_list.then(COMMA).then(struct_declarator) );
 });
 
 var struct_declarator = lazy(function() {
-    IDENTIFIER
-    IDENTIFIER LEFT_BRACKET constant_expression RIGHT_BRACKET
+    return ( IDENTIFIER )
+        .or( IDENTIFIER.then(LEFT_BRACKET).then(constant_expression).then(RIGHT_BRACKET) );
 });
 
 var initializer = lazy(function() {
-    assignment_expression
+    return assignment_expression;
 });
 
 var declaration_statement = lazy(function() {
-    declaration
+    return declaration;
 });
 
 var statement = lazy(function() {
-    compound_statement
-    simple_statement
+    return ( compound_statement )
+        .or( simple_statement );
 });
 
 var simple_statement = lazy(function() {
-    declaration_statement
-    expression_statement
-    selection_statement
-    iteration_statement
-    jump_statement
+    return ( declaration_statement )
+        .or( expression_statement )
+        .or( selection_statement )
+        .or( iteration_statement )
+        .or( jump_statement );
 });
 
 var compound_statement = lazy(function() {
-    LEFT_BRACE RIGHT_BRACE
-    LEFT_BRACE statement_list RIGHT_BRACE
+    return ( LEFT_BRACE.then(RIGHT_BRACE) )
+        .or( LEFT_BRACE.then(statement_list).then(RIGHT_BRACE) );
 });
 
 var statement_no_new_scope = lazy(function() {
-    compound_statement_no_new_scope
-    simple_statement
+    return ( compound_statement_no_new_scope )
+        .or( simple_statement );
 });
 
 var compound_statement_no_new_scope = lazy(function() {
-    LEFT_BRACE RIGHT_BRACE
-    LEFT_BRACE statement_list RIGHT_BRACE
+    return ( LEFT_BRACE.then(RIGHT_BRACE) )
+        .or( LEFT_BRACE.then(statement_list).then(RIGHT_BRACE) );
 });
 
 var statement_list = lazy(function() {
-    statement
-    statement_list statement
+    return ( statement )
+        .or( statement_list.then(statement) );
 });
 
 var expression_statement = lazy(function() {
-    SEMICOLON
-    expression SEMICOLON
+    return ( SEMICOLON )
+        .or( expression.then(SEMICOLON) );
 });
 
 var selection_statement = lazy(function() {
-    IF LEFT_PAREN expression RIGHT_PAREN selection_rest_statement
+    return IF.then(LEFT_PAREN).then(expression).then(RIGHT_PAREN).then(selection_rest_statement);
 });
 
 var selection_rest_statement = lazy(function() {
-    statement ELSE statement
-        statement
+    return ( statement.then(ELSE).then(statement) )
+        .or( statement );
 });
 
 var condition = lazy(function() {
-    expression
-    fully_specified_type IDENTIFIER EQUAL initializer
+    return ( expression )
+        .or( fully_specified_type.then(IDENTIFIER).then(EQUAL).then(initializer) );
 });
 
 var iteration_statement = lazy(function() {
-    WHILE LEFT_PAREN condition RIGHT_PAREN statement_no_new_scope
-        DO statement WHILE LEFT_PAREN expression RIGHT_PAREN SEMICOLON
-            FOR LEFT_PAREN for_init_statement for_rest_statement RIGHT_PAREN statement_no_new_scope
+    return ( WHILE.then(LEFT_PAREN).then(condition).then(RIGHT_PAREN).then(statement_no_new_scope) )
+        .or( DO.then(statement).then(WHILE).then(LEFT_PAREN).then(expression).then(RIGHT_PAREN).then(SEMICOLON) )
+        .or( FOR.then(LEFT_PAREN).then(for_init_statement).then(for_rest_statement).then(RIGHT_PAREN).then(statement_no_new_scope) );
 });
 
 var for_init_statement = lazy(function() {
-    expression_statement
-    declaration_statement
+    return ( expression_statement )
+        .or( declaration_statement );
 });
 
 var conditionopt = lazy(function() {
-    condition
-    empty
+    return condition.many();
 });
 
 var for_rest_statement = lazy(function() {
-    conditionopt SEMICOLON
-    conditionopt SEMICOLON expression
+    return ( conditionopt.then(SEMICOLON) )
+        .or( conditionopt.then(SEMICOLON).then(expression) );
 });
 
 var jump_statement = lazy(function() {
-    CONTINUE SEMICOLON
-    BREAK SEMICOLON
-    RETURN SEMICOLON
-    RETURN expression SEMICOLON
-    DISCARD SEMICOLON
+    return ( CONTINUE.then(SEMICOLON) )
+        .or( BREAK.then(SEMICOLON) )
+        .or( RETURN.then(SEMICOLON) )
+        .or( RETURN.then(expression).then(SEMICOLON) )
+        .or( DISCARD.then(SEMICOLON) );
 });
 
 var translation_unit = lazy(function() {
-    external_declaration
-    translation_unit external_declaration
+    return ( external_declaration )
+        .or( translation_unit.then(external_declaration) );
 });
 
 var external_declaration = lazy(function() {
-    function_definition
-    declaration
+    return ( function_definition )
+        .or( declaration );
 });
 
 var function_definition = lazy(function() {
-    function_prototype compound_statement_no_new_scope
+    return function_prototype.then(compound_statement_no_new_scope);
 });
+
+console.log( translation_unit.parse('\
+struct light {\
+    float intensity; // meow\n\
+    vec3 position;\
+} lightVar;\
+mat3( 1.0, \
+   1.2, 2.2, 3.2,\
+   1.3, 2.3, 3.3 );\
+ ') );
+
+
+}());
