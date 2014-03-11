@@ -18,7 +18,10 @@ var _regex = function( re ) {
     if( typeof re === 'string' ) {
         re = new RegExp( escapeRegex( re ), 'i' );
     }
-    return skipAll.then( regex( re ) ).skip( skipAll );
+    return skipAll.then( regex( re ) ).skip( skipAll ).map(function() {
+        //console.log( '    matched: ',arguments );
+        return arguments;
+    });
 };
 
 /*

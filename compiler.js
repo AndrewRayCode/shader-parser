@@ -27,4 +27,20 @@ var terminator = ';\n';
 var merge = function() {
 };
 
-console.log( Ast.buildTree( window.vert2 ) );
+//console.log( Ast.buildTree( window.vert2 ) );
+
+console.log(  translation_unit.parse('\
+uniform float time;\
+uniform float prevTime;\
+uniform vec2 mouse;\
+uniform vec2 resolution;\
+uniform sampler2D backbuffer;\
+vec3 hueShift(float shifter, vec3 inRGB)\
+{\
+    vec3 yiq = rgb2yiq * (inRGB) + 1;\n\
+    //float h = (shifter) + atan();\
+    //float chroma = sqrt( yiq.b * yiq.b + yiq.g * yiq.g );\
+    //vec3 rgb = yiq2rgb * vec3( yiq.r, chroma * cos(h), chroma * sin(h) );\n\
+    return rgb;\
+}\
+ '));
