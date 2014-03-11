@@ -18,11 +18,14 @@
 
     "predef" : [
         "Ast",
-        "_"
+        "_",
         "lazy",
-        "regex"
+        "regex",
+        "skipAll",
+        "_regex",
+        "blockComment",
+        "lineComment"
     ],
-
 
     // Development.
     "debug" : false, // Allow debugger statements e.g. browser breakpoints.

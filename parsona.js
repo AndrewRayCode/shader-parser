@@ -1,5 +1,7 @@
-(function() {
-
+/* global skipAll:true */
+/* global _regex:true */
+/* global blockComment:true */
+/* global lineComment:true */
 var blockComment = regex( /\/\*.*?\*\//m );
 var lineComment = regex( /\/\/.*/i );
 
@@ -19,120 +21,7 @@ var _regex = function( re ) {
     return skipAll.then( regex( re ) ).skip( skipAll );
 };
 
-var
-
-    // User tokens
-    FLOATCONSTANT = _regex(/^-?\d+(([.]|e[+-]?)\d+)?/i),
-    INTCONSTANT = _regex(/^-?\d+/i),
-    BOOLCONSTANT = _regex(/true|false/),
-    IDENTIFIER = _regex(/^[a-z_][a-z0-9_]*/i),
-    TYPE_NAME = _regex(/^[a-z_][a-z0-9_]*/i), // ? Can't find this in spec
-    FIELD_SELECTION = IDENTIFIER, // this is not clearly defined in the spec
-
-    // Words defined by the spec
-    ATTRIBUTE = _regex('ATTRIBUTE'),
-    CONST = _regex('CONST'),
-    FLOAT = _regex('FLOAT'),
-    INT = _regex('INT'),
-    BOOL = _regex('BOOL'),
-    BREAK = _regex('BREAK'),
-    CONTINUE = _regex('CONTINUE'),
-    DO = _regex('DO'),
-    ELSE = _regex('ELSE'),
-    FOR = _regex('FOR'),
-    IF = _regex('IF'),
-    DISCARD = _regex('DISCARD'),
-    RETURN = _regex('RETURN'),
-    BVEC2 = _regex('BVEC2'),
-    BVEC3 = _regex('BVEC3'),
-    BVEC4 = _regex('BVEC4'),
-    IVEC2 = _regex('IVEC2'),
-    IVEC3 = _regex('IVEC3'),
-    IVEC4 = _regex('IVEC4'),
-    VEC2 = _regex('VEC2'),
-    VEC3 = _regex('VEC3'),
-    VEC4 = _regex('VEC4'),
-    MAT2 = _regex('MAT2'),
-    MAT3 = _regex('MAT3'),
-    MAT4 = _regex('MAT4'),
-    IN = _regex('IN'),
-    OUT = _regex('OUT'),
-    INOUT = _regex('INOUT'),
-    UNIFORM = _regex('UNIFORM'),
-    VARYING = _regex('VARYING'),
-    CENTROID = _regex('CENTROID'),
-    MAT2X2 = _regex('MAT2X2'),
-    MAT2X3 = _regex('MAT2X3'),
-    MAT2X4 = _regex('MAT2X4'),
-    MAT3X2 = _regex('MAT3X2'),
-    MAT3X3 = _regex('MAT3X3'),
-    MAT3X4 = _regex('MAT3X4'),
-    MAT4X2 = _regex('MAT4X2'),
-    MAT4X3 = _regex('MAT4X3'),
-    MAT4X4 = _regex('MAT4X4'),
-    SAMPLER1D = _regex('SAMPLER1D'),
-    SAMPLER2D = _regex('SAMPLER2D'),
-    SAMPLER3D = _regex('SAMPLER3D'),
-    SAMPLERCUBE = _regex('SAMPLERCUBE'),
-    SAMPLER1DSHADOW = _regex('SAMPLER1DSHADOW'),
-    SAMPLER2DSHADOW = _regex('SAMPLER2DSHADOW'),
-    STRUCT = _regex('STRUCT'),
-    VOID = _regex('VOID'),
-    WHILE = _regex('WHILE'),
-    INVARIANT = _regex('INVARIANT'),
-
-    // Operations
-    INC_OP = _regex('+'),
-    DEC_OP = _regex('-'),
-    LE_OP = _regex('<'),
-    GE_OP = _regex('>'),
-    EQ_OP = _regex('=='),
-    NE_OP = _regex('!='),
-    AND_OP = _regex('&&'),
-    OR_OP = _regex('||'),
-    XOR_OP = _regex('^^'),
-    LEFT_OP = _regex('>>'),
-    RIGHT_OP = _regex('<<'),
-
-    // Assignments
-    LEFT_ASSIGN = _regex('<<='),
-    RIGHT_ASSIGN = _regex('>>='),
-    AND_ASSIGN = _regex('&='),
-    XOR_ASSIGN = _regex('^='),
-    OR_ASSIGN = _regex('|='),
-    SUB_ASSIGN = _regex('-='),
-    MUL_ASSIGN = _regex('*='),
-    DIV_ASSIGN = _regex('/='),
-    ADD_ASSIGN = _regex('+='),
-    MOD_ASSIGN = _regex('%='),
-
-    // Symbols
-    LEFT_PAREN = _regex('('),
-    RIGHT_PAREN = _regex(')'),
-    LEFT_BRACKET = _regex('['),
-    RIGHT_BRACKET = _regex(']'),
-    LEFT_BRACE = _regex('{'),
-    RIGHT_BRACE = _regex('}'),
-    DOT = _regex('.'),
-    COMMA = _regex(','),
-    COLON = _regex(':'),
-    EQUAL = _regex('='),
-    SEMICOLON = _regex(';'),
-    BANG = _regex('!'),
-    DASH = _regex('-'),
-    TILDE = _regex('~'),
-    PLUS = _regex('+'),
-    STAR = _regex('*'),
-    SLASH = _regex('/'),
-    PERCENT = _regex('%'),
-    LEFT_ANGLE = _regex('<'),
-    RIGHT_ANGLE = _regex('>'),
-    VERTICAL_BAR = _regex('|'),
-    CARET = _regex('^'),
-    AMPERSAND = _regex('&'),
-    QUESTION = _regex('?');
-
-
+/*
 var variable_identifier = lazy(function() {
     return IDENTIFIER;
 });
@@ -303,6 +192,7 @@ var constant_expression = lazy(function() {
 });
 
 var declaration = lazy(function() {
+    //return init_declarator_list.then(SEMICOLON);
     return ( function_prototype.then(SEMICOLON) )
         .or( init_declarator_list.then(SEMICOLON) );
 });
@@ -348,6 +238,7 @@ var parameter_type_specifier = lazy(function() {
 });
 
 var init_declarator_list = lazy(function() {
+    //return single_declaration;
     return ( single_declaration )
         .or( init_declarator_list.then(COMMA).then(IDENTIFIER) )
         .or( init_declarator_list.then(COMMA).then(IDENTIFIER).then(LEFT_BRACKET).then(RIGHT_BRACKET) )
@@ -361,6 +252,7 @@ var init_declarator_list = lazy(function() {
 });
 
 var single_declaration = lazy(function() {
+    //return fully_specified_type.then(IDENTIFIER).then(LEFT_BRACKET).then(constant_expression).then(RIGHT_BRACKET);
     return ( fully_specified_type )
         .or( fully_specified_type.then(IDENTIFIER) )
         .or( fully_specified_type.then(IDENTIFIER).then(LEFT_BRACKET).then(RIGHT_BRACKET) )
@@ -373,6 +265,7 @@ var single_declaration = lazy(function() {
 });
 
 var fully_specified_type = lazy(function() {
+    //return type_specifier;
     return ( type_specifier )
         .or( type_qualifier.then(type_specifier) );
 });
@@ -461,6 +354,7 @@ var declaration_statement = lazy(function() {
 });
 
 var statement = lazy(function() {
+    //return simple_statement;
     return ( compound_statement )
         .or( simple_statement );
 });
@@ -546,6 +440,7 @@ var translation_unit = lazy(function() {
 });
 
 var external_declaration = lazy(function() {
+    //return declaration;
     return ( function_definition )
         .or( declaration );
 });
@@ -553,16 +448,21 @@ var external_declaration = lazy(function() {
 var function_definition = lazy(function() {
     return function_prototype.then(compound_statement_no_new_scope);
 });
+*/
 
-console.log( translation_unit.parse('\
-struct light {\
-    float intensity; // meow\n\
-    vec3 position;\
-} lightVar;\
-mat3( 1.0, \
-   1.2, 2.2, 3.2,\
-   1.3, 2.3, 3.3 );\
- ') );
+//console.log( statement_list.parse('void mains() {}') );
+//mat3( 1.0 );\
+//struct light {\
+    //float intensity; // meow\n\
+    //vec3 position;\
+//} lightVar;\
+//mat3 m = mat3( 1.1, 2.1, 3.1, // first column (not row!)\n\
+   //1.2, 2.2, 3.2, // second column\n\
+   //1.3, 2.3, 3.3 );  // third column\n\
+//mat3( 1.0, \
+   //1.2, 2.2, 3.2,\
+   //1.3, 2.3, 3.3 );\
+    //vec4 glow = a + b;\
+    //return glow;\
+ //'));
 
-
-}());
