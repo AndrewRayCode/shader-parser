@@ -14,7 +14,8 @@ var primary_expression = lazy(function() {
 
 var postfix_expression = lazy(function() {
     return primary_expression
-        .or( postfix_expression.then( LEFT_BRACKET ).then( integer_expression ).then( RIGHT_BRACKET ).then( function_call ) )
+        .or( postfix_expression.then( LEFT_BRACKET ).then( integer_expression ).then( RIGHT_BRACKET ) )
+        .or( function_call )
         .or( postfix_expression.then( DOT ).then( FIELD_SELECTION ) )
         .or( postfix_expression.then( INC_OP ) )
         .or( postfix_expression.then( DEC_OP ) );
@@ -167,15 +168,15 @@ var constant_expression = lazy(function() {
 });
 
 var declaration = lazy(function() {
-    return ( function_prototype.then( SEMICOLON ) )
-        .or( init_declarator_list.then( SEMICOLON ) )
-        .or( PRECISION.then( precision_qualifier ).then( type_specifier ).then( SEMICOLON ) )
-        .or( type_qualifier.then( IDENTIFIER ).then( LEFT_BRACE ).then( struct_declaration_list ).then( RIGHT_BRACE ).then( SEMICOLON ) )
-        .or( type_qualifier.then( IDENTIFIER ).then( LEFT_BRACE ).then( struct_declaration_list ).then( RIGHT_BRACE ).then( IDENTIFIER ).then( SEMICOLON ) )
-        .or( type_qualifier.then( IDENTIFIER ).then( LEFT_BRACE ).then( struct_declaration_list ).then( RIGHT_BRACE ).then( IDENTIFIER ).then( array_specifier ).then( SEMICOLON ) )
-        .or( type_qualifier.then( SEMICOLON ) )
-        .or( type_qualifier.then( IDENTIFIER ).then( SEMICOLON ) )
-        .or( type_qualifier.then( IDENTIFIER ).then( identifier_list ).then( SEMICOLON ) );
+    return ( function_prototype.skip( SEMICOLON ) )
+        .or( init_declarator_list.skip( SEMICOLON ) )
+        .or( PRECISION.then( precision_qualifier ).then( type_specifier ).skip( SEMICOLON ) )
+        .or( type_qualifier.then( IDENTIFIER ).then( LEFT_BRACE ).then( struct_declaration_list ).then( RIGHT_BRACE ).skip( SEMICOLON ) )
+        .or( type_qualifier.then( IDENTIFIER ).then( LEFT_BRACE ).then( struct_declaration_list ).then( RIGHT_BRACE ).then( IDENTIFIER ).skip( SEMICOLON ) )
+        .or( type_qualifier.then( IDENTIFIER ).then( LEFT_BRACE ).then( struct_declaration_list ).then( RIGHT_BRACE ).then( IDENTIFIER ).then( array_specifier ).skip( SEMICOLON ) )
+        .or( type_qualifier.skip( SEMICOLON ) )
+        .or( type_qualifier.then( IDENTIFIER ).skip( SEMICOLON ) )
+        .or( type_qualifier.then( IDENTIFIER ).then( identifier_list ).skip( SEMICOLON ) );
 });
 
 var identifier_list = lazy(function() {
@@ -459,8 +460,8 @@ var struct_declaration_list = lazy(function() {
 });
 
 var struct_declaration = lazy(function() {
-    return ( type_specifier.then( struct_declarator_list ).then( SEMICOLON ) )
-        .or( type_qualifier.then( type_specifier ).then( struct_declarator_list ).then( SEMICOLON ) );
+    return ( type_specifier.then( struct_declarator_list ).skip( SEMICOLON ) )
+        .or( type_qualifier.then( type_specifier ).then( struct_declarator_list ).skip( SEMICOLON ) );
 });
 
 var struct_declarator_list = lazy(function() {
@@ -525,7 +526,7 @@ var statement_list = lazy(function() {
 
 var expression_statement = lazy(function() {
     return SEMICOLON
-        .or( expression.then( SEMICOLON ) );
+        .or( expression.skip( SEMICOLON ) );
 });
 
 var selection_statement = lazy(function() {
@@ -557,7 +558,7 @@ var case_label = lazy(function() {
 
 var iteration_statement = lazy(function() {
     return ( WHILE.then( LEFT_PAREN ).then( condition ).then( RIGHT_PAREN ).then( statement_no_new_scope ) )
-        .or( DO.then( statement ).then( WHILE ).then( LEFT_PAREN ).then( expression ).then( RIGHT_PAREN ).then( SEMICOLON ) )
+        .or( DO.then( statement ).then( WHILE ).then( LEFT_PAREN ).then( expression ).then( RIGHT_PAREN ).skip( SEMICOLON ) )
         .or( FOR.then( LEFT_PAREN ).then( for_init_statement ).then( for_rest_statement ).then( RIGHT_PAREN ).then( statement_no_new_scope ) );
 });
 
@@ -571,26 +572,29 @@ var conditionopt = lazy(function() {
 });
 
 var for_rest_statement = lazy(function() {
-    return ( conditionopt.then( SEMICOLON ) )
-        .or( conditionopt.then( SEMICOLON ).then( expression ) );
+    return ( conditionopt.skip( SEMICOLON ) )
+        .or( conditionopt.skip( SEMICOLON ).then( expression ) );
 });
 
 var jump_statement = lazy(function() {
-    return ( CONTINUE.then( SEMICOLON ) )
-        .or( BREAK.then( SEMICOLON ) )
-        .or( RETURN.then( SEMICOLON ) )
-        .or( RETURN.then( expression ).then( SEMICOLON ) )
-        .or( DISCARD.then( SEMICOLON ) );
+    return ( CONTINUE.skip( SEMICOLON ) )
+        .or( BREAK.skip( SEMICOLON ) )
+        .or( RETURN.skip( SEMICOLON ) )
+        .or( RETURN.then( expression ).skip( SEMICOLON ) )
+        .or( DISCARD.skip( SEMICOLON ) );
 });
 
 var translation_unit = lazy(function() {
-    return external_declaration
-        .or( translation_unit.then( external_declaration ) );
+    return header_preprocessor.many();
+});
+
+// MODIFIED: Not part of the grammar. Includes #preprocessor grammars.
+var header_preprocessor = lazy(function() {
+    return preprocessor_directive.or( external_declaration );
 });
 
 var external_declaration = lazy(function() {
-    return function_definition
-        .or( declaration );
+    return function_definition.or( declaration );
 });
 
 var function_definition = lazy(function() {

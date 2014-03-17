@@ -218,9 +218,9 @@ var
     DOUBLECONSTANT = _regex('DOUBLECONSTANT'),
     UINTCONSTANT = _regex('UINTCONSTANT'),
     PRECISE = _regex('PRECISE'),
-    HIGH_PRECISION = _regex('HIGH_PRECISION'),
-    MEDIUM_PRECISION = _regex('MEDIUM_PRECISION'),
-    LOW_PRECISION = _regex('LOW_PRECISION'),
+    HIGH_PRECISION = _regex('HIGHP'),
+    MEDIUM_PRECISION = _regex('MEDIUMP'),
+    LOW_PRECISION = _regex('LOWP'),
     PRECISION = _regex('PRECISION'),
 
     VARYING = _regex('VARYING'),
