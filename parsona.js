@@ -2,8 +2,17 @@
 /* global _regex:true */
 /* global blockComment:true */
 /* global lineComment:true */
+/* global mapp:true */
 var blockComment = regex( /\/\*.*?\*\//m );
 var lineComment = regex( /\/\/.*/i );
+
+var kv = function( obj ) {
+    var key = Object.keys( obj )[0];
+    return {
+        key: key,
+        value: obj[ key ]
+    };
+};
 
 var skipAll = regex( /^\s+/ )
     .or( blockComment )
@@ -18,9 +27,35 @@ var _regex = function( re ) {
     if( typeof re === 'string' ) {
         re = new RegExp( escapeRegex( re ), 'i' );
     }
-    return skipAll.then( regex( re ) ).skip( skipAll ).map(function() {
-        //console.log( '    matched: ',arguments );
-        return arguments;
+    return skipAll.then( regex( re ) ).skip( skipAll );
+};
+
+// Input:
+//     mapp([ { left: grammar1 }, { right: grammar2 } ])
+// Output:
+//     seq([ grammar1, grammar2 ]}.map(function() {
+//          return {
+//              left: grammar1_parsed,
+//              right: grammar2_parsed,
+//          };
+//     })
+var mapp = function( rulesArray ) {
+
+    var sequed = [],
+        parsedRules = _.map( rulesArray, kv );
+
+    _.each( parsedRules, function( rule ) {
+        sequed = sequed.concat( rule.value );
+    });
+
+    return seq( sequed ).map( function( args ) {
+        var node = {};
+
+        _.each( parsedRules, function( rule, index ) {
+            node[ rule.key ] = args[ index ];
+        });
+
+        return node;
     });
 };
 

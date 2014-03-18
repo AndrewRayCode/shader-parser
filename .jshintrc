@@ -24,7 +24,8 @@
         "skipAll",
         "_regex",
         "blockComment",
-        "lineComment"
+        "lineComment",
+        "mapp"
     ],
 
     // Development.
