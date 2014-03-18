@@ -80,7 +80,7 @@ var unary_operator = lazy(function() {
 
 var multiplicative_expression = lazy(function() {
     return unary_expression
-        .or( multiplicative_expression.then( STAR ).then( unary_expression ) )
+        .or( infix( multiplicative_expression, STAR, unary_expression ) )
         .or( multiplicative_expression.then( SLASH ).then( unary_expression ) )
         .or( multiplicative_expression.then( PERCENT ).then( unary_expression ) );
 });
@@ -277,17 +277,15 @@ var single_declaration = lazy(function() {
             { name: IDENTIFIER },
             { array_specifier: array_specifier }
         ]) )
-        .or( mapp([
+        .or( infix([
             { type: fully_specified_type },
             { name: IDENTIFIER },
-            { array_specifier: array_specifier.skip( EQUAL ) },
-            { right: initializer },
-        ]) )
-        .or( mapp([
+            { array_specifier: array_specifier }
+        ], EQUAL, initializer ))
+        .or( infix([
             { type: fully_specified_type },
-            { name: IDENTIFIER.skip( EQUAL ) },
-            { right: initializer },
-        ]) );
+            { name: IDENTIFIER }
+        ], EQUAL, initializer ));
 });
 
 var fully_specified_type = lazy(function() {
@@ -654,7 +652,7 @@ var external_declaration = lazy(function() {
 
 var function_definition = lazy(function() {
     return mapp([
-        { defun: function_prototype },
+        { definition: function_prototype },
         { body: compound_statement_no_new_scope }
     ]);
 });

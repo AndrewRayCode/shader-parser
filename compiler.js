@@ -35,13 +35,13 @@ console.log(  translation_unit.parse('\
 //#endif\n\
 vec3 hueShift(float shifter, vec3 inRGB)\
 {\
-    vec3 yiq = rgb2yiq * meow(inRGB) + 1;\n\
+    vec3 yiq = rgb2yiq * ( 1 + 2.0 );\n\
     //float h = (shifter) + atan();\
     //float chroma = sqrt( yiq.b * yiq.b + yiq.g * yiq.g );\
     //vec3 rgb = yiq2rgb * vec3( yiq.r, chroma * cos(h), chroma * sin(h) );\n\
     return rgb;\
 }\
- ')[0].defun);
+ ')[0].body[0]);
 
 //console.log(  translation_unit.parse('\
 //#ifdef GL_ES\n\

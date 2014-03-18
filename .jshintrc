@@ -25,7 +25,8 @@
         "_regex",
         "blockComment",
         "lineComment",
-        "mapp"
+        "mapp",
+        "infix"
     ],
 
     // Development.

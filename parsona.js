@@ -3,6 +3,7 @@
 /* global blockComment:true */
 /* global lineComment:true */
 /* global mapp:true */
+/* global infix:true */
 var blockComment = regex( /\/\*.*?\*\//m );
 var lineComment = regex( /\/\/.*/i );
 
@@ -30,26 +31,39 @@ var _regex = function( re ) {
     return skipAll.then( regex( re ) ).skip( skipAll );
 };
 
+var infix = function() {
+    return mapp([
+        { left: arguments[0] },
+        { nodeType: arguments[1] },
+        { right: arguments[2] },
+    ]);
+};
+
 // Input:
-//     mapp([ { left: grammar1 }, { right: grammar2 } ])
+//     mapp([ { left: grammar1 }, grammarI, { right: grammar2 } ])
 // Output:
-//     seq([ grammar1, grammar2 ]}.map(function() {
+//     seq([ grammar1, grammarI, grammar2 ]}.map(function() {
 //          return {
 //              left: grammar1_parsed,
 //              right: grammar2_parsed,
 //          };
 //     })
-var mapp = function( rulesArray ) {
+var mapp = function( rulesArray, nodeAttrs ) {
 
     var sequed = [],
         parsedRules = _.map( rulesArray, kv );
 
-    _.each( parsedRules, function( rule ) {
-        sequed = sequed.concat( rule.value );
+    _.each( parsedRules, function( rule, index ) {
+
+        if( _.isArray( rule.value ) ) {
+            sequed = sequed.concat( mapp( rule.value ) );
+        } else {
+            sequed = sequed.concat( rule.value );
+        }
     });
 
     return seq( sequed ).map( function( args ) {
-        var node = {};
+        var node = nodeAttrs || {};
 
         _.each( parsedRules, function( rule, index ) {
             node[ rule.key ] = args[ index ];
