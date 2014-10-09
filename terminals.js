@@ -4,9 +4,23 @@ var
     FLOATCONSTANT = _regex(/^-?\d+(([.]|e[+-]?)\d+)?/i),
     INTCONSTANT = _regex(/^-?\d+/i),
     BOOLCONSTANT = _regex(/true|false/),
-    IDENTIFIER = _regex(/^[a-z_][a-z0-9_]*/i),
-    TYPE_NAME = _regex(/^[a-z_][a-z0-9_]*/i), // ? Can't find this in spec
-    FIELD_SELECTION = IDENTIFIER, // this is not clearly defined in the spec
+
+    IDENTIFIER = _regex(/^[a-z_][a-z0-9_]*/i).map(function( name ) {
+        return {
+            nodeType: 'identifier',
+            name: name
+        };
+    }),
+
+    TYPE_NAME = _regex(/^[a-z_][a-z0-9_]*/i).map(function( name ) {
+        return {
+            nodeType: 'type_name',
+            name: name
+        };
+    }),
+
+    // Defined in 3.7 "Identifiers" of http://www.opengl.org/registry/doc/GLSLangSpec.4.40.pdf
+    FIELD_SELECTION = IDENTIFIER,
 
     // Words defined by the spec
     ATTRIBUTE = _regex('ATTRIBUTE'),

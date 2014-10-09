@@ -39,6 +39,23 @@ var infix = function() {
     ]);
 };
 
+//var _seq = function( arr ) {
+    //var fn = arr[0];
+
+    //for( var x = 1; x < arr.length; x++ ) {
+        //(function(x) {
+            //fn = fn.chain(function( t ) {
+                //return arr[ x ].map( function( n ) {
+                    //return ( _.isArray( t ) ? t : [ t ] ).concat( n );
+                //});
+            //});
+        //}(x));
+    //}
+
+    //return fn;
+
+//};
+
 // Input:
 //     mapp([ { left: grammar1 }, grammarI, { right: grammar2 } ])
 // Output:
@@ -62,7 +79,7 @@ var mapp = function( rulesArray, nodeAttrs ) {
         }
     });
 
-    return seq( sequed ).map( function( args ) {
+    return seq( sequed );/*.map( function( args ) {
         var node = nodeAttrs || {};
 
         _.each( parsedRules, function( rule, index ) {
@@ -70,7 +87,7 @@ var mapp = function( rulesArray, nodeAttrs ) {
         });
 
         return node;
-    });
+    });*/
 };
 
 /*
